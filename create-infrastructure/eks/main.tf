@@ -1,7 +1,7 @@
 ### EKS resources
 
-resource "aws_iam_role" "devops-role-eks-cluster" {
-  name = "devops-role-eks-cluster"
+resource "aws_iam_role" "product-hunting-role-eks-cluster" {
+  name = "product-hunting-role-eks-cluster"
 
   assume_role_policy = <<POLICY
 {
@@ -19,36 +19,36 @@ resource "aws_iam_role" "devops-role-eks-cluster" {
 POLICY
 }
 
-resource "aws_iam_role_policy_attachment" "devops-AmazonEKSClusterPolicy" {
+resource "aws_iam_role_policy_attachment" "product-hunting-AmazonEKSClusterPolicy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
-  role       = aws_iam_role.devops-role-eks-cluster.name
+  role       = aws_iam_role.product-hunting-role-eks-cluster.name
 }
 
-resource "aws_iam_role_policy_attachment" "devops-AmazonEKSVPCResourceController" {
+resource "aws_iam_role_policy_attachment" "product-hunting-AmazonEKSVPCResourceController" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSVPCResourceController"
-  role       = aws_iam_role.devops-role-eks-cluster.name
+  role       = aws_iam_role.product-hunting-role-eks-cluster.name
 }
 
-resource "aws_eks_cluster" "devops-eks-cluster" {
-  name     = "devops-eks-cluster"
-  role_arn = aws_iam_role.devops-role-eks-cluster.arn
+resource "aws_eks_cluster" "product-hunting-eks-cluster" {
+  name     = "product-hunting-eks-cluster"
+  role_arn = aws_iam_role.product-hunting-role-eks-cluster.arn
 
   vpc_config {
-    subnet_ids = [aws_subnet.devops-subnet-public-1.id, aws_subnet.devops-subnet-public-2.id]
+    subnet_ids = [aws_subnet.product-hunting-subnet-public-1.id, aws_subnet.product-hunting-subnet-public-2.id]
   }
 
   depends_on = [
-    aws_iam_role_policy_attachment.devops-AmazonEKSClusterPolicy,
-    aws_iam_role_policy_attachment.devops-AmazonEKSVPCResourceController,
+    aws_iam_role_policy_attachment.product-hunting-AmazonEKSClusterPolicy,
+    aws_iam_role_policy_attachment.product-hunting-AmazonEKSVPCResourceController,
   ]
 
   tags = {
-    Name = "devops-eks-cluster"
+    Name = "product-hunting-eks-cluster"
   }
 }
 
-resource "aws_iam_role" "devops-role-eks-node-group" {
-  name = "devops-role-eks-node-group"
+resource "aws_iam_role" "product-hunting-role-eks-node-group" {
+  name = "product-hunting-role-eks-node-group"
 
   assume_role_policy = jsonencode({
     Statement = [{
@@ -62,26 +62,26 @@ resource "aws_iam_role" "devops-role-eks-node-group" {
   })
 }
 
-resource "aws_iam_role_policy_attachment" "devops-AmazonEKSWorkerNodePolicy" {
+resource "aws_iam_role_policy_attachment" "product-hunting-AmazonEKSWorkerNodePolicy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
-  role       = aws_iam_role.devops-role-eks-node-group.name
+  role       = aws_iam_role.product-hunting-role-eks-node-group.name
 }
 
-resource "aws_iam_role_policy_attachment" "devops-AmazonEKS_CNI_Policy" {
+resource "aws_iam_role_policy_attachment" "product-hunting-AmazonEKS_CNI_Policy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
-  role       = aws_iam_role.devops-role-eks-node-group.name
+  role       = aws_iam_role.product-hunting-role-eks-node-group.name
 }
 
-resource "aws_iam_role_policy_attachment" "devops-AmazonEC2ContainerRegistryReadOnly" {
+resource "aws_iam_role_policy_attachment" "product-hunting-AmazonEC2ContainerRegistryReadOnly" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
-  role       = aws_iam_role.devops-role-eks-node-group.name
+  role       = aws_iam_role.product-hunting-role-eks-node-group.name
 }
 
-resource "aws_eks_node_group" "devops-eks-node-group" {
-  cluster_name    = aws_eks_cluster.devops-eks-cluster.name
-  node_group_name = "devops-eks-node-group"
-  node_role_arn   = aws_iam_role.devops-role-eks-node-group.arn
-  subnet_ids      = [aws_subnet.devops-subnet-public-1.id, aws_subnet.devops-subnet-public-2.id]
+resource "aws_eks_node_group" "product-hunting-eks-node-group" {
+  cluster_name    = aws_eks_cluster.product-hunting-eks-cluster.name
+  node_group_name = "product-hunting-eks-node-group"
+  node_role_arn   = aws_iam_role.product-hunting-role-eks-node-group.arn
+  subnet_ids      = [aws_subnet.product-hunting-subnet-public-1.id, aws_subnet.product-hunting-subnet-public-2.id]
   instance_types  = ["t2.micro"]
 
   scaling_config {
@@ -91,12 +91,12 @@ resource "aws_eks_node_group" "devops-eks-node-group" {
   }
 
   depends_on = [
-    aws_iam_role_policy_attachment.devops-AmazonEKSWorkerNodePolicy,
-    aws_iam_role_policy_attachment.devops-AmazonEKS_CNI_Policy,
-    aws_iam_role_policy_attachment.devops-AmazonEC2ContainerRegistryReadOnly,
+    aws_iam_role_policy_attachment.product-hunting-AmazonEKSWorkerNodePolicy,
+    aws_iam_role_policy_attachment.product-hunting-AmazonEKS_CNI_Policy,
+    aws_iam_role_policy_attachment.product-hunting-AmazonEC2ContainerRegistryReadOnly,
   ]
 
   tags = {
-    Name = "devops-eks-node-group"
+    Name = "product-hunting-eks-node-group"
   }
 }
