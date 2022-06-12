@@ -1,12 +1,16 @@
-module "vpc" {
-    source = "./vpc"
+module "ecr" {
+  source = "./ecr"
+}
 
-    my_ip = var.my_ip
+module "vpc" {
+  source = "./vpc"
+
+  my_ip = var.my_ip
 }
 
 module "eks" {
-    source = "./eks"
-    
-    product-hunting-subnet-public-1-id = module.vpc.subnet-public-1-id
-    product-hunting-subnet-public-2-id = module.vpc.subnet-public-2-id
+  source = "./eks"
+
+  product-hunting-subnet-public-1-id = module.vpc.subnet-public-1-id
+  product-hunting-subnet-public-2-id = module.vpc.subnet-public-2-id
 }
