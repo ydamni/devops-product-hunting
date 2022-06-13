@@ -1,0 +1,33 @@
+variables:
+  AWS_REGION: us-east-1
+
+stages:
+  - create infrastructure
+
+verify state locking:
+  stage: create infrastructure
+  image:
+    name: hashicorp/terraform:1.2.2
+    entrypoint: [""]
+  before_script:
+    - apk add --no-cache curl python3 py-pip
+    - pip install awscli
+    - aws configure set region $AWS_REGION
+  script:
+    - aws dynamodb describe-table --table-name product-hunting-terraform-state-lock
+
+apply state locking:
+  stage: create infrastructure
+  needs: ["verify state locking"]
+  when: on_failure
+  image:
+    name: hashicorp/terraform:1.2.2
+    entrypoint: [""]
+  before_script:
+    - apk add --no-cache curl python3 py-pip
+    - pip install awscli
+    - aws configure set region $AWS_REGION
+  script:
+    - cd ./create-infrastructure/state-lock
+    - terraform init
+    - terraform apply -auto-approve
