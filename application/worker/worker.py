@@ -2,6 +2,10 @@ import requests
 import json
 import os
 
+### ###
+### Using this script, the top 500 most voted posts on Product Hunt will be stored in the file 'list_posts.json'.
+### ###
+
 ### Delete existing list_posts.json file
 if os.path.exists("list_posts.json"):
   os.remove("list_posts.json")
@@ -23,8 +27,8 @@ headers = {
 CURSOR = ""
 
 ### By default, Product Hunt API v2 returns 20 posts maximum per query
-### In order to retrieve 1000 posts, The API must be queried 50 times (20*50=1000).
-for i in range(50):
+### In order to retrieve 500 posts, The API must be queried 25 times (20*25=500).
+for i in range(25):
     i+=1
 
     ### ###
@@ -62,6 +66,10 @@ for i in range(50):
     ### Show Response Status
     if response.status_code == 200:
         print("OK - Data received.")
+    else:
+        print("ALERT - Data not received - Code", response.status_code)
+        print("The script is stopping.")
+        exit()
 
     ### Store Response inside response.json file
     with open('response.json', 'w') as response_file:
@@ -74,7 +82,6 @@ for i in range(50):
     ### Cut first & last 4 lines of response to keep only nodes
     with open('list_posts.json', 'a') as list_posts_file:
         list_posts_file.writelines(response_lines[4:-4])
-
 
     ### ###
     ### GET CURSOR
@@ -99,5 +106,13 @@ for i in range(50):
     cursor_response = requests.post(API_URL,
                                     headers=headers,
                                     data=json.dumps(cursor_query))
+
+    ### Show Cursor Response Status
+    if cursor_response.status_code == 200:
+        print("OK - Cursor received.")
+    else:
+        print("ALERT - Cursor not received - Code", cursor_response.status_code)
+        print("The script is stopping.")
+        exit()
 
     CURSOR = cursor_response.json()['data']['posts']['pageInfo']['endCursor']
