@@ -10,6 +10,10 @@ import os
 if os.path.exists("list_posts.json"):
   os.remove("list_posts.json")
 
+### Add '[' (with indentation) at start of list_posts.json file
+with open('list_posts.json', 'a') as list_posts_file:
+    list_posts_file.write('            [\n')
+
 API_URL = "https://api.producthunt.com/v2/api/graphql"
 
 ### At first, store your Access Token as a environment variable in your OS by doing so:
@@ -28,7 +32,8 @@ CURSOR = ""
 
 ### By default, Product Hunt API v2 returns 20 posts maximum per query
 ### In order to retrieve 500 posts, The API must be queried 25 times (20*25=500).
-for i in range(25):
+NUM_QUERIES = 25
+for i in range(NUM_QUERIES):
     i+=1
 
     ### ###
@@ -75,13 +80,19 @@ for i in range(25):
     with open('response.json', 'w') as response_file:
         json.dump(response.json(), response_file, indent=4)
 
-    ### Put response.json file content into variable
+    ### Put response.json file content into variable with multiple lines
     with open('response.json', 'r') as response_file:
         response_lines = response_file.read().splitlines(True)
+
+    ### Until the last query
+    if i != NUM_QUERIES:
+        ### Add a comma (with indentation) at the last node
+        response_lines[-5] = '                },'
 
     ### Cut first & last 4 lines of response to keep only nodes
     with open('list_posts.json', 'a') as list_posts_file:
         list_posts_file.writelines(response_lines[4:-4])
+
 
     ### ###
     ### GET CURSOR
@@ -116,3 +127,11 @@ for i in range(25):
         exit()
 
     CURSOR = cursor_response.json()['data']['posts']['pageInfo']['endCursor']
+
+### Add ']' (with indentation) at the end of list_posts.json file
+with open('list_posts.json', 'a') as list_posts_file:
+    list_posts_file.write('            ]')
+
+### Delete existing response.json file
+if os.path.exists("response.json"):
+  os.remove("response.json")
