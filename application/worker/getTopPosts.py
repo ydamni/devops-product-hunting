@@ -3,16 +3,12 @@ import json
 import os
 
 ### ###
-### Using this script, the top 500 most voted posts on Product Hunt will be stored in the file 'list_posts.json'.
+### Using this script, the top 500 most voted posts on Product Hunt will be stored in the file 'posts.json'.
 ### ###
 
-### Delete existing list_posts.json file
-if os.path.exists("list_posts.json"):
-  os.remove("list_posts.json")
-
-### Add '[' (with indentation) at start of list_posts.json file
-with open('list_posts.json', 'a') as list_posts_file:
-    list_posts_file.write('            [\n')
+### Add '[' (with indentation) at start of posts.json file
+with open('posts.json', 'w') as posts_file:
+    posts_file.write('            [\n')
 
 API_URL = "https://api.producthunt.com/v2/api/graphql"
 
@@ -90,8 +86,8 @@ for i in range(NUM_QUERIES):
         response_lines[-5] = '                },'
 
     ### Cut first & last 4 lines of response to keep only nodes
-    with open('list_posts.json', 'a') as list_posts_file:
-        list_posts_file.writelines(response_lines[4:-4])
+    with open('posts.json', 'a') as posts_file:
+        posts_file.writelines(response_lines[4:-4])
 
 
     ### ###
@@ -128,10 +124,10 @@ for i in range(NUM_QUERIES):
 
     CURSOR = cursor_response.json()['data']['posts']['pageInfo']['endCursor']
 
-### Add ']' (with indentation) at the end of list_posts.json file
-with open('list_posts.json', 'a') as list_posts_file:
-    list_posts_file.write('            ]')
+### Add ']' (with indentation) at the end of posts.json file
+with open('posts.json', 'a') as posts_file:
+    posts_file.write('            ]')
 
-### Delete existing response.json file
+### Delete response.json file
 if os.path.exists("response.json"):
   os.remove("response.json")
