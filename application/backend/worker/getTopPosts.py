@@ -70,7 +70,7 @@ for i in range(NUM_QUERIES):
     else:
         print("ALERT - Data not received - Code", response.status_code)
         print("The script is stopping.")
-        exit()
+        exit(1)
 
     ### Store Response inside response.json file
     with open('response.json', 'w') as response_file:
@@ -120,7 +120,7 @@ for i in range(NUM_QUERIES):
     else:
         print("ALERT - Cursor not received - Code", cursor_response.status_code)
         print("The script is stopping.")
-        exit()
+        exit(1)
 
     CURSOR = cursor_response.json()['data']['posts']['pageInfo']['endCursor']
 
