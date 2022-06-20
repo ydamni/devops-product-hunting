@@ -58,15 +58,8 @@ create production infrastructure:
 insert top products to database:
   stage: build
   image: alpine:3.16
-  services:
-    - postgres:alpine3.16
-  variables:
-    POSTGRES_USER: $POSTGRES_USER
-    POSTGRES_PASSWORD: $POSTGRES_PASSWORD
-    POSTGRES_DB: $POSTGRES_DATABASE
-    POSTGRES_HOST_AUTH_METHOD: trust
   before_script:
-    - apk add --no-cache python3 py3-pip postgresql-client
+    - apk add --no-cache python3 py3-pip
     - pip3 install sqlizer-io-client
   script:
     - cd ./application/backend/worker
@@ -82,8 +75,6 @@ insert top products to database:
     - sed -i 's/list_node_//g' posts.sql
     - sed -i '2s/^/    "id" SERIAL PRIMARY KEY,\n/' posts.sql
     - sed -i "s/('/(DEFAULT,'/g" posts.sql
-    ### Verify .sql file by pushing it to Postgres DB
-    - psql -h postgres -U $POSTGRES_USER -d $POSTGRES_DATABASE -f posts.sql
   cache: 
     key: $CI_COMMIT_REF_SLUG-POSTGRES
     paths:
@@ -92,8 +83,13 @@ insert top products to database:
 build client-server application modules:
   stage: build
   image: alpine:3.16
+  cache: 
+    key: $CI_COMMIT_REF_SLUG-NODE-MODULES
+    paths:
+      - $CI_PROJECT_DIR/application/backend/api/node_modules/
+      - $CI_PROJECT_DIR/application/frontend/client/node_modules/
   before_script:
-    - apk add --no-cache nodejs npm curl
+    - apk add --no-cache nodejs npm
   script:
     ### Server-side
     - cd $CI_PROJECT_DIR/application/backend/api
@@ -101,9 +97,52 @@ build client-server application modules:
     ### Client-side
     - cd $CI_PROJECT_DIR/application/frontend/client
     - npm install
-  cache: 
-    key: $CI_COMMIT_REF_SLUG-NODE-MODULES
-    paths:
-      - $CI_PROJECT_DIR/application/backend/api/node_modules/
-      - $CI_PROJECT_DIR/application/frontend/client/node_modules/
 
+
+smoke test:
+  stage: test
+  image: alpine:3.16
+  cache: 
+    -
+      key: $CI_COMMIT_REF_SLUG-NODE-MODULES
+      paths:
+        - $CI_PROJECT_DIR/application/backend/api/node_modules/
+        - $CI_PROJECT_DIR/application/frontend/client/node_modules/
+    -
+      key: $CI_COMMIT_REF_SLUG-POSTGRES
+      paths:
+        - $CI_PROJECT_DIR/application/backend/worker/
+  services:
+    - postgres:alpine3.16
+  variables:
+    POSTGRES_USER: $POSTGRES_USER
+    POSTGRES_PASSWORD: $POSTGRES_PASSWORD
+    POSTGRES_DB: $POSTGRES_DATABASE
+    POSTGRES_HOST_AUTH_METHOD: trust
+  before_script:
+    - apk add --no-cache postgresql-client nodejs npm curl
+  script:
+    ### Push .sql file to Postgres DB
+    - cd $CI_PROJECT_DIR/application/backend/worker
+    - psql -h postgres -U $POSTGRES_USER -d $POSTGRES_DATABASE -f posts.sql
+    ### Launch server API
+    - cd $CI_PROJECT_DIR/application/backend/api
+    - |
+      cat <<EOF | tee .env
+      POSTGRES_USER="$POSTGRES_USER"
+      POSTGRES_PASSWORD="$POSTGRES_PASSWORD"
+      POSTGRES_DATABASE="$POSTGRES_DATABASE"
+      POSTGRES_HOST="postgres"
+      POSTGRES_PORT=5432
+      EOF
+    - node index index.js &
+    ### Launch client Web application
+    - cd $CI_PROJECT_DIR/application/frontend/client
+    - |
+      cat <<EOF | tee .env
+      REACT_APP_API_URL="$API_URL"
+      EOF
+    - npm start &
+    ### Smoke test
+    - sleep 15
+    - curl http://localhost:3000
