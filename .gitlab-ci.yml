@@ -4,6 +4,7 @@ variables:
 stages:
   - infrastructure prerequisites
   - create infrastructure
+  - build
 
 verify state locking:
   stage: infrastructure prerequisites
@@ -15,6 +16,7 @@ verify state locking:
     - pip install awscli
     - aws configure set region $AWS_REGION
   script:
+    ### See if state-lock table exists (i.e. if state lock applied)
     - aws dynamodb describe-table --table-name product-hunting-terraform-state-lock
 
 apply state locking:
@@ -44,9 +46,43 @@ create production infrastructure:
     - aws configure set region $AWS_REGION
   script:
     - cd ./create-infrastructure
+    ### Add personal public IP inside .tfvars
     - |
       cat <<EOF | tee ./main.tfvars
       my_ip = "$MY_IP/32"
       EOF
     - terraform init
     - terraform apply -var-file=main.tfvars -auto-approve
+
+insert top products to database:
+  stage: build
+  image: alpine:3.16
+  services:
+    - postgres:alpine3.16
+  variables:
+    POSTGRES_USER: $POSTGRES_USER
+    POSTGRES_PASSWORD: $POSTGRES_PASSWORD
+    POSTGRES_DB: $POSTGRES_DATABASE
+    POSTGRES_HOST_AUTH_METHOD: trust
+  before_script:
+    - apk add --no-cache python3 py3-pip postgresql-client
+    - pip3 install sqlizer-io-client
+  script:
+    - cd ./application/backend/worker
+    ### GET top 500 most voted posts from Product Hunt API (output .json file)
+    - export API_ACCESS_TOKEN=$PRODUCT_HUNT_API_ACCESS_TOKEN
+    - python3 getTopPosts.py
+    ### Delete emojis inside .json file
+    - sed -i -e 's/\(\\u\).\{4\}//g' posts.json
+    ### Convert JSON to SQL
+    - export API_KEY=$SQLIZER_API_KEY
+    - python3 convertJsonToSql.py
+    ### Reformat fields name & add id field
+    - sed -i 's/list_node_//g' posts.sql
+    - sed -i '2s/^/    "id" SERIAL PRIMARY KEY,\n/' posts.sql
+    - sed -i "s/('/(DEFAULT,'/g" posts.sql
+    ### Push .sql file to Postgres DB
+    - psql -h postgres -U $POSTGRES_USER -d $POSTGRES_DATABASE -f posts.sql
+  artifacts:
+    paths:
+      - ./application/backend/worker/
