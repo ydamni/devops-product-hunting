@@ -191,3 +191,9 @@ override.tf.json
 terraform.rc
 
 # End of https://www.toptal.com/developers/gitignore/api/terraform,node,react
+
+### Other ###
+# Include generated files that are specific to the "devops-product-hunting" project
+posts.json
+posts.sql
+page.html
