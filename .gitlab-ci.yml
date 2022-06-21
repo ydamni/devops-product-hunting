@@ -93,11 +93,10 @@ build client-server application modules:
   script:
     ### Server-side
     - cd $CI_PROJECT_DIR/application/backend/api
-    - npm install express pg cors dotenv
+    - npm install express pg cors
     ### Client-side
     - cd $CI_PROJECT_DIR/application/frontend/client
     - npm install
-
 
 smoke test:
   stage: test
@@ -120,29 +119,32 @@ smoke test:
     POSTGRES_DB: $POSTGRES_DATABASE
     POSTGRES_HOST_AUTH_METHOD: trust
   before_script:
-    - apk add --no-cache postgresql-client nodejs npm curl
+    - apk add --no-cache postgresql-client nodejs npm
+    ### Packages for Selenium
+    - apk add --no-cache python3 py3-pip chromium-chromedriver gcc python3-dev libffi-dev musl-dev
+    - pip3 install selenium
   script:
     ### Push .sql file to Postgres DB
     - cd $CI_PROJECT_DIR/application/backend/worker
     - psql -h postgres -U $POSTGRES_USER -d $POSTGRES_DATABASE -f posts.sql
     ### Launch server API
     - cd $CI_PROJECT_DIR/application/backend/api
-    - |
-      cat <<EOF | tee .env
-      POSTGRES_USER="$POSTGRES_USER"
-      POSTGRES_PASSWORD="$POSTGRES_PASSWORD"
-      POSTGRES_DATABASE="$POSTGRES_DATABASE"
-      POSTGRES_HOST="postgres"
-      POSTGRES_PORT=5432
-      EOF
+    - export POSTGRES_USER="$POSTGRES_USER"
+    - export POSTGRES_PASSWORD="$POSTGRES_PASSWORD"
+    - export POSTGRES_DATABASE="$POSTGRES_DATABASE"
+    - export POSTGRES_HOST="postgres"
+    - export POSTGRES_PORT=5432
     - node index index.js &
     ### Launch client Web application
     - cd $CI_PROJECT_DIR/application/frontend/client
-    - |
-      cat <<EOF | tee .env
-      REACT_APP_API_URL="$API_URL"
-      EOF
+    - export REACT_APP_API_URL="$API_URL"
     - npm start &
-    ### Smoke test
+    ### Wait for application to start
     - sleep 15
-    - curl http://localhost:3000
+    ### Smoke test with Selenium
+    - cd $CI_PROJECT_DIR/test/smoke-test
+    - python3 extractWebPage.py
+    - cat page.html | grep "Rank 500"
+  artifacts:
+    paths:
+      - test/smoke-test/page.html
