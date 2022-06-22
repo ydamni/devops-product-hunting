@@ -148,3 +148,11 @@ smoke test:
   artifacts:
     paths:
       - test/smoke-test/page.html
+
+include:
+  - template: Code-Quality.gitlab-ci.yml
+code_quality:
+  variables:
+    REPORT_FORMAT: html
+  artifacts:
+    paths: [gl-code-quality-report.html]
