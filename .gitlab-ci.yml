@@ -129,9 +129,6 @@ smoke test:
     - psql -h postgres -U $POSTGRES_USER -d $POSTGRES_DATABASE -f posts.sql
     ### Launch server API
     - cd $CI_PROJECT_DIR/application/backend/api
-    - export POSTGRES_USER="$POSTGRES_USER"
-    - export POSTGRES_PASSWORD="$POSTGRES_PASSWORD"
-    - export POSTGRES_DATABASE="$POSTGRES_DATABASE"
     - export POSTGRES_HOST="postgres"
     - export POSTGRES_PORT=5432
     - node index index.js &
