@@ -116,7 +116,7 @@ smoke test:
   variables:
     POSTGRES_USER: $POSTGRES_USER
     POSTGRES_PASSWORD: $POSTGRES_PASSWORD
-    POSTGRES_DB: $POSTGRES_DATABASE
+    POSTGRES_DB: $POSTGRES_DB
     POSTGRES_HOST_AUTH_METHOD: trust
   before_script:
     - apk add --no-cache postgresql-client nodejs npm
@@ -126,7 +126,7 @@ smoke test:
   script:
     ### Push .sql file to Postgres DB
     - cd $CI_PROJECT_DIR/application/backend/worker
-    - psql -h postgres -U $POSTGRES_USER -d $POSTGRES_DATABASE -f posts.sql
+    - psql -h postgres -U $POSTGRES_USER -d $POSTGRES_DB -f posts.sql
     ### Launch server API
     - cd $CI_PROJECT_DIR/application/backend/api
     - export POSTGRES_HOST="postgres"
