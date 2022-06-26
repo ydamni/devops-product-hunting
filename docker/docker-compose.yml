@@ -1,0 +1,25 @@
+version: "3.0"
+services:
+  postgres:
+    build: ../application/backend/worker
+    image: product-hunting-postgres
+    container_name: postgres
+    hostname: postgres
+  api:
+    build: ../application/backend/api
+    image: product-hunting-api
+    container_name: api
+    hostname: api
+    ports:
+      - 5000:5000
+    links:
+      - postgres
+  client:
+    build: ../application/frontend/client
+    image: product-hunting-client
+    container_name: client
+    hostname: client
+    ports:
+      - 3000:3000
+    links:
+      - api
