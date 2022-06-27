@@ -1,11 +1,14 @@
 variables:
   AWS_REGION: us-east-1
+  LOCAL_API_URL: http://localhost:5000/posts
+  DOCKER_API_URL: http://api:5000/posts
 
 stages:
   - infrastructure prerequisites
   - create infrastructure
   - build
   - test
+  - release
 
 verify state locking:
   stage: infrastructure prerequisites
@@ -75,7 +78,7 @@ insert top products to database:
     - sed -i 's/list_node_//g' posts.sql
     - sed -i '2s/^/    "id" SERIAL PRIMARY KEY,\n/' posts.sql
     - sed -i "s/('/(DEFAULT,'/g" posts.sql
-  cache: 
+  cache:
     key: $CI_COMMIT_REF_SLUG-POSTGRES
     paths:
       - $CI_PROJECT_DIR/application/backend/worker/
@@ -83,11 +86,12 @@ insert top products to database:
 build client-server application modules:
   stage: build
   image: alpine:3.16
-  cache: 
-    key: $CI_COMMIT_REF_SLUG-NODE-MODULES
+  cache:
+    key: $CI_COMMIT_REF_SLUG-BUILD
     paths:
       - $CI_PROJECT_DIR/application/backend/api/node_modules/
       - $CI_PROJECT_DIR/application/frontend/client/node_modules/
+      - $CI_PROJECT_DIR/application/frontend/client/build
   before_script:
     - apk add --no-cache nodejs npm
   script:
@@ -97,20 +101,11 @@ build client-server application modules:
     ### Client-side
     - cd $CI_PROJECT_DIR/application/frontend/client
     - npm install
+    - npm run build
 
 smoke test:
   stage: test
   image: alpine:3.16
-  cache: 
-    -
-      key: $CI_COMMIT_REF_SLUG-NODE-MODULES
-      paths:
-        - $CI_PROJECT_DIR/application/backend/api/node_modules/
-        - $CI_PROJECT_DIR/application/frontend/client/node_modules/
-    -
-      key: $CI_COMMIT_REF_SLUG-POSTGRES
-      paths:
-        - $CI_PROJECT_DIR/application/backend/worker/
   services:
     - postgres:alpine3.16
   variables:
@@ -118,6 +113,16 @@ smoke test:
     POSTGRES_PASSWORD: $POSTGRES_PASSWORD
     POSTGRES_DB: $POSTGRES_DB
     POSTGRES_HOST_AUTH_METHOD: trust
+  cache:
+    -
+      key: $CI_COMMIT_REF_SLUG-BUILD
+      paths:
+        - $CI_PROJECT_DIR/application/backend/api/node_modules/
+        - $CI_PROJECT_DIR/application/frontend/client/node_modules/
+    -
+      key: $CI_COMMIT_REF_SLUG-POSTGRES
+      paths:
+        - $CI_PROJECT_DIR/application/backend/worker/
   before_script:
     - apk add --no-cache postgresql-client nodejs npm
     ### Packages for Selenium
@@ -134,7 +139,7 @@ smoke test:
     - node index index.js &
     ### Launch client Web application
     - cd $CI_PROJECT_DIR/application/frontend/client
-    - export REACT_APP_API_URL="$API_URL"
+    - export REACT_APP_API_URL="$LOCAL_API_URL"
     - npm start &
     ### Wait for application to start
     - sleep 15
@@ -153,3 +158,43 @@ code_quality:
     REPORT_FORMAT: html
   artifacts:
     paths: [gl-code-quality-report.html]
+
+create docker images:
+  stage: release
+  image: docker:20.10
+  services:
+    - docker:20.10-dind
+  cache:
+    -
+      key: $CI_COMMIT_REF_SLUG-BUILD
+      paths:
+        - $CI_PROJECT_DIR/application/backend/api/node_modules/
+        - $CI_PROJECT_DIR/application/frontend/client/build/
+    -
+      key: $CI_COMMIT_REF_SLUG-POSTGRES
+      paths:
+        - $CI_PROJECT_DIR/application/backend/worker/
+  before_script:
+    - apk add --no-cache curl python3 py-pip
+    - pip install awscli
+    - aws configure set region $AWS_REGION
+  script:
+    - cd ./docker
+    ### Build images
+    - |
+      docker-compose build \
+      --build-arg POSTGRES_USER=$POSTGRES_USER \
+      --build-arg POSTGRES_PASSWORD=$POSTGRES_PASSWORD \
+      --build-arg POSTGRES_DB=$POSTGRES_DB \
+      --build-arg REACT_APP_API_URL=$LOCAL_API_URL \
+      --no-cache
+    ### Connect to AWS ECR registry
+    - aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+    ### Create image tags
+    - docker tag product-hunting-postgres:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/product-hunting-postgres:latest
+    - docker tag product-hunting-api:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/product-hunting-api:latest
+    - docker tag product-hunting-client:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/product-hunting-client:latest
+    ### Push images to ECR
+    - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/product-hunting-postgres:latest
+    - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/product-hunting-api:latest
+    - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/product-hunting-client:latest
