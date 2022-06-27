@@ -1,6 +1,6 @@
 ### ### Build client web app
 ### Base image
-FROM alpine:3.16
+FROM nginx:1.23.0-alpine
 
 ### Define working directory inside image
 WORKDIR /app
@@ -12,15 +12,9 @@ ARG REACT_APP_API_URL
 ENV REACT_APP_API_URL=$REACT_APP_API_URL
 
 ### Copy the content of the build's context to the working directory
-### Example in shell: cp application/frontend/client/* /app/
-COPY . .
-
-### Install npm
-RUN apk add --no-cache npm
+### Example in shell: cp application/frontend/client/build/* /usr/share/nginx/html
+ADD build /usr/share/nginx/html/
 
 ### ### Run server API
-### Expose web app port 3000
-EXPOSE 3000
-
-### Launch client
-CMD npm start
+### Expose web app port 80
+EXPOSE 80
