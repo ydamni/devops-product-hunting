@@ -4,14 +4,15 @@ variables:
   DOCKER_API_URL: http://api:5000/posts
 
 stages:
-  - infrastructure prerequisites
-  - create infrastructure
+  - infra prerequisites
+  - create infra
   - build
   - test
   - release
+  - deploy
 
 verify state locking:
-  stage: infrastructure prerequisites
+  stage: infra prerequisites
   image:
     name: hashicorp/terraform:1.2.2
     entrypoint: [""]
@@ -24,7 +25,7 @@ verify state locking:
     - aws dynamodb describe-table --table-name product-hunting-terraform-state-lock
 
 apply state locking:
-  stage: infrastructure prerequisites
+  stage: infra prerequisites
   needs: ["verify state locking"]
   when: on_failure
   image:
@@ -40,7 +41,7 @@ apply state locking:
     - terraform apply -auto-approve
 
 create production infrastructure:
-  stage: create infrastructure
+  stage: create infra
   image:
     name: hashicorp/terraform:1.2.2
     entrypoint: [""]
@@ -60,6 +61,8 @@ create production infrastructure:
 
 insert top products to database:
   stage: build
+  needs: ["verify state locking"]
+  when: on_success
   image: alpine:3.16
   before_script:
     - apk add --no-cache python3 py3-pip
@@ -85,6 +88,8 @@ insert top products to database:
 
 build client-server application modules:
   stage: build
+  needs: ["verify state locking"]
+  when: on_success
   image: alpine:3.16
   cache:
     key: $CI_COMMIT_REF_SLUG-BUILD
