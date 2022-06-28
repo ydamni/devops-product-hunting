@@ -92,11 +92,15 @@ build client-server application modules:
   when: on_success
   image: alpine:3.16
   cache:
-    key: $CI_COMMIT_REF_SLUG-BUILD
-    paths:
-      - $CI_PROJECT_DIR/application/backend/api/node_modules/
-      - $CI_PROJECT_DIR/application/frontend/client/node_modules/
-      - $CI_PROJECT_DIR/application/frontend/client/build
+    -
+      key: $CI_COMMIT_REF_SLUG-NODE-MODULES
+      paths:
+        - $CI_PROJECT_DIR/application/backend/api/node_modules/
+        - $CI_PROJECT_DIR/application/frontend/client/node_modules/
+    -
+      key: $CI_COMMIT_REF_SLUG-BUILD
+      paths:
+        - $CI_PROJECT_DIR/application/frontend/client/build
   before_script:
     - apk add --no-cache nodejs npm
   script:
@@ -120,7 +124,7 @@ smoke test:
     POSTGRES_HOST_AUTH_METHOD: trust
   cache:
     -
-      key: $CI_COMMIT_REF_SLUG-BUILD
+      key: $CI_COMMIT_REF_SLUG-NODE-MODULES
       paths:
         - $CI_PROJECT_DIR/application/backend/api/node_modules/
         - $CI_PROJECT_DIR/application/frontend/client/node_modules/
@@ -171,9 +175,12 @@ create docker images:
     - docker:20.10-dind
   cache:
     -
-      key: $CI_COMMIT_REF_SLUG-BUILD
+      key: $CI_COMMIT_REF_SLUG-NODE-MODULES
       paths:
         - $CI_PROJECT_DIR/application/backend/api/node_modules/
+    -
+      key: $CI_COMMIT_REF_SLUG-BUILD
+      paths:
         - $CI_PROJECT_DIR/application/frontend/client/build/
     -
       key: $CI_COMMIT_REF_SLUG-POSTGRES
