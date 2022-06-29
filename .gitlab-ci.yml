@@ -1,7 +1,7 @@
 variables:
   AWS_REGION: us-east-1
   LOCAL_API_URL: http://localhost:5000/posts
-  DOCKER_API_URL: http://api:5000/posts
+  DOMAIN_API_URL: http://devops-product-hunting.com:5000/posts
 
 stages:
   - infra prerequisites
@@ -110,6 +110,7 @@ build client-server application modules:
     ### Client-side
     - cd $CI_PROJECT_DIR/application/frontend/client
     - npm install
+    - export REACT_APP_API_URL="$DOMAIN_API_URL"
     - npm run build
 
 smoke test:
@@ -198,7 +199,7 @@ create docker images:
       --build-arg POSTGRES_USER=$POSTGRES_USER \
       --build-arg POSTGRES_PASSWORD=$POSTGRES_PASSWORD \
       --build-arg POSTGRES_DB=$POSTGRES_DB \
-      --build-arg REACT_APP_API_URL=$LOCAL_API_URL \
+      --build-arg REACT_APP_API_URL=$DOMAIN_API_URL \
       --no-cache
     ### Connect to AWS ECR registry
     - aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
