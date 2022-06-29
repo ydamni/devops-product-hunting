@@ -199,7 +199,6 @@ create docker images:
       --build-arg POSTGRES_USER=$POSTGRES_USER \
       --build-arg POSTGRES_PASSWORD=$POSTGRES_PASSWORD \
       --build-arg POSTGRES_DB=$POSTGRES_DB \
-      --build-arg REACT_APP_API_URL=$DOMAIN_API_URL \
       --no-cache
     ### Connect to AWS ECR registry
     - aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
