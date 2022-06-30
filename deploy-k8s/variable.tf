@@ -1,0 +1,2 @@
+variable "ecr_registry" {
+}
