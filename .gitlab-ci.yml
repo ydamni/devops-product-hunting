@@ -17,8 +17,8 @@ verify state locking:
     name: hashicorp/terraform:1.2.2
     entrypoint: [""]
   before_script:
-    - apk add --no-cache curl python3 py-pip
-    - pip install awscli
+    - apk add --no-cache curl python3 py3-pip
+    - pip3 install awscli
     - aws configure set region $AWS_REGION
   script:
     ### See if state-lock table exists (i.e. if state lock applied)
@@ -32,8 +32,8 @@ apply state locking:
     name: hashicorp/terraform:1.2.2
     entrypoint: [""]
   before_script:
-    - apk add --no-cache curl python3 py-pip
-    - pip install awscli
+    - apk add --no-cache curl python3 py3-pip
+    - pip3 install awscli
     - aws configure set region $AWS_REGION
   script:
     - cd ./create-infrastructure/state-lock
@@ -46,8 +46,8 @@ create production infrastructure:
     name: hashicorp/terraform:1.2.2
     entrypoint: [""]
   before_script:
-    - apk add --no-cache curl python3 py-pip
-    - pip install awscli
+    - apk add --no-cache curl python3 py3-pip
+    - pip3 install awscli
     - aws configure set region $AWS_REGION
   script:
     - cd ./create-infrastructure
@@ -115,6 +115,8 @@ build client-server application modules:
 
 smoke test:
   stage: test
+  needs: ["insert top products to database", "build client-server application modules"]
+  when: on_success
   image: alpine:3.16
   services:
     - postgres:alpine3.16
@@ -188,8 +190,8 @@ create docker images:
       paths:
         - $CI_PROJECT_DIR/application/backend/worker/
   before_script:
-    - apk add --no-cache curl python3 py-pip
-    - pip install awscli
+    - apk add --no-cache curl python3 py3-pip
+    - pip3 install awscli
     - aws configure set region $AWS_REGION
   script:
     - cd ./docker
@@ -210,3 +212,40 @@ create docker images:
     - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/product-hunting-postgres:latest
     - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/product-hunting-api:latest
     - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/product-hunting-client:latest
+
+deploy app with kube:
+  stage: deploy
+  image:
+    name: hashicorp/terraform:1.2.2
+    entrypoint: [""]
+  before_script:
+    - apk add --no-cache curl python3 py3-pip
+    ### Install awscli
+    - pip3 install awscli
+    - aws configure set region $AWS_REGION
+    ### Install Docker
+    - apk add --no-cache docker openrc
+    ### Install kubectl
+    - curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl
+    - chmod +x ./kubectl
+    - mv ./kubectl /usr/local/bin/kubectl
+  script:
+    ### Install EKS kubeconfig file locally
+    - aws eks update-kubeconfig --name product-hunting-eks-cluster
+    ### Connect to AWS ECR registry
+    - aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+    ### Configure Terraform
+    - cd ./deploy-k8s
+    - |
+      cat <<EOF | tee ./main.tfvars
+      ecr_registry = "$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com"
+      EOF
+    - terraform init
+    - terraform refresh -var-file=main.tfvars
+    - terraform apply -var-file=main.tfvars -auto-approve
+    ### Add data to DB:
+    - |
+      LIST_PODS=$(kubectl get pods --no-headers -o custom-columns=":metadata.name" | grep product-hunting)
+      for POD in $LIST_PODS; do
+          kubectl exec $POD --container product-hunting-postgres -- psql -h localhost -U $POSTGRES_USER -d $POSTGRES_DB -f posts.sql
+      done
