@@ -246,6 +246,9 @@ deploy app with kube:
     ### Add data to DB:
     - |
       LIST_PODS=$(kubectl get pods --no-headers -o custom-columns=":metadata.name" | grep product-hunting)
-      for POD in $LIST_PODS; do
-          kubectl exec $POD --container product-hunting-postgres -- psql -h localhost -U $POSTGRES_USER -d $POSTGRES_DB -f posts.sql
+      for pod in $LIST_PODS; do
+          IS_TABLE_CREATED=$(kubectl exec $pod --container product-hunting-postgres -- psql -h localhost -U $POSTGRES_USER -d $POSTGRES_DB -c '\dt' | { grep posts || true; })
+          if [ -z "$IS_TABLE_CREATED" ]; then
+              kubectl exec $pod --container product-hunting-postgres -- psql -h localhost -U $POSTGRES_USER -d $POSTGRES_DB -f posts.sql
+          fi
       done
