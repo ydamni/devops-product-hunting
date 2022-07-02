@@ -85,3 +85,26 @@ resource "aws_security_group" "product-hunting-sg-allow-http" {
     Name = "product-hunting-sg-allow-http"
   }
 }
+
+resource "aws_security_group" "product-hunting-sg-allow-api" {
+  name   = "product-hunting-sg-allow-api"
+  vpc_id = aws_vpc.product-hunting-vpc.id
+
+  ingress {
+    from_port   = 5000
+    to_port     = 5000
+    protocol    = "tcp"
+    cidr_blocks = [var.my_ip]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "product-hunting-sg-allow-api"
+  }
+}

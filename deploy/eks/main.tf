@@ -71,7 +71,7 @@ resource "kubernetes_deployment" "product-hunting-kube-deployment" {
       spec {
         container {
           name  = "product-hunting-postgres"
-          image = "${var.ecr_registry}/product-hunting-postgres:latest"
+          image = "${var.ecr_registry}/product-hunting-postgres:prod"
 
           port {
             container_port = 5432
@@ -80,7 +80,7 @@ resource "kubernetes_deployment" "product-hunting-kube-deployment" {
 
         container {
           name  = "product-hunting-api"
-          image = "${var.ecr_registry}/product-hunting-api:latest"
+          image = "${var.ecr_registry}/product-hunting-api:prod"
 
           port {
             container_port = 5000
@@ -94,7 +94,7 @@ resource "kubernetes_deployment" "product-hunting-kube-deployment" {
 
         container {
           name  = "product-hunting-client"
-          image = "${var.ecr_registry}/product-hunting-client:latest"
+          image = "${var.ecr_registry}/product-hunting-client:prod"
 
           port {
             container_port = 80

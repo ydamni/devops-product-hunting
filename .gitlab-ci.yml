@@ -1,69 +1,44 @@
 variables:
+  ### AWS
   AWS_REGION: us-east-1
+  ### Postgres for test stage
+  TEST_POSTGRES_USER: test_postgres
+  TEST_POSTGRES_PASSWORD: just_for_test
+  TEST_POSTGRES_DB: test_product_hunting
+  ### Application
   LOCAL_API_URL: http://localhost:5000/posts
-  DOMAIN_API_URL: http://devops-product-hunting.com:5000/posts
+  REVIEW_API_URL: http://review.devops-product-hunting.com:5000/posts
+  PROD_API_URL: http://devops-product-hunting.com:5000/posts
+  ### Environments
+  REVIEW_URL: http://review.devops-product-hunting.com
+  PROD_URL: http://devops-product-hunting.com
 
 stages:
-  - infra prerequisites
-  - create infra
+  - prerequisites
+  - infrastructure
   - build
   - test
   - release
   - deploy
+  - prod infrastructure
+  - prod build
+  - prod release
+  - prod deploy
 
-verify state locking:
-  stage: infra prerequisites
-  image:
-    name: hashicorp/terraform:1.2.2
-    entrypoint: [""]
-  before_script:
-    - apk add --no-cache curl python3 py3-pip
-    - pip3 install awscli
-    - aws configure set region $AWS_REGION
-  script:
-    ### See if state-lock table exists (i.e. if state lock applied)
-    - aws dynamodb describe-table --table-name product-hunting-terraform-state-lock
+### ###
+### Dev - Merge request
+### ###
 
-apply state locking:
-  stage: infra prerequisites
-  needs: ["verify state locking"]
-  when: on_failure
-  image:
-    name: hashicorp/terraform:1.2.2
-    entrypoint: [""]
-  before_script:
-    - apk add --no-cache curl python3 py3-pip
-    - pip3 install awscli
-    - aws configure set region $AWS_REGION
-  script:
-    - cd ./create-infrastructure/state-lock
-    - terraform init
-    - terraform apply -auto-approve
-
-create production infrastructure:
-  stage: create infra
-  image:
-    name: hashicorp/terraform:1.2.2
-    entrypoint: [""]
-  before_script:
-    - apk add --no-cache curl python3 py3-pip
-    - pip3 install awscli
-    - aws configure set region $AWS_REGION
-  script:
-    - cd ./create-infrastructure
-    ### Add personal public IP inside .tfvars
-    - |
-      cat <<EOF | tee ./main.tfvars
-      my_ip = "$MY_IP/32"
-      EOF
-    - terraform init
-    - terraform apply -var-file=main.tfvars -auto-approve
-
-insert top products to database:
+store top products in sql:
   stage: build
-  needs: ["verify state locking"]
-  when: on_success
   image: alpine:3.16
+  only:
+    - merge_requests
+  cache:
+    -
+      key: DEV-POSTGRES
+      paths:
+        - $CI_PROJECT_DIR/application/backend/worker/
   before_script:
     - apk add --no-cache python3 py3-pip
     - pip3 install sqlizer-io-client
@@ -81,26 +56,18 @@ insert top products to database:
     - sed -i 's/list_node_//g' posts.sql
     - sed -i '2s/^/    "id" SERIAL PRIMARY KEY,\n/' posts.sql
     - sed -i "s/('/(DEFAULT,'/g" posts.sql
-  cache:
-    key: $CI_COMMIT_REF_SLUG-POSTGRES
-    paths:
-      - $CI_PROJECT_DIR/application/backend/worker/
 
-build client-server application modules:
+build client-server app:
   stage: build
-  needs: ["verify state locking"]
-  when: on_success
   image: alpine:3.16
+  only:
+    - merge_requests
   cache:
     -
-      key: $CI_COMMIT_REF_SLUG-NODE-MODULES
+      key: DEV-NODE-MODULES
       paths:
         - $CI_PROJECT_DIR/application/backend/api/node_modules/
         - $CI_PROJECT_DIR/application/frontend/client/node_modules/
-    -
-      key: $CI_COMMIT_REF_SLUG-BUILD
-      paths:
-        - $CI_PROJECT_DIR/application/frontend/client/build
   before_script:
     - apk add --no-cache nodejs npm
   script:
@@ -110,31 +77,31 @@ build client-server application modules:
     ### Client-side
     - cd $CI_PROJECT_DIR/application/frontend/client
     - npm install
-    - export REACT_APP_API_URL="$DOMAIN_API_URL"
-    - npm run build
 
 smoke test:
   stage: test
-  needs: ["insert top products to database", "build client-server application modules"]
+  needs: ["store top products in sql", "build client-server app"]
   when: on_success
   image: alpine:3.16
   services:
     - postgres:alpine3.16
   variables:
-    POSTGRES_USER: $POSTGRES_USER
-    POSTGRES_PASSWORD: $POSTGRES_PASSWORD
-    POSTGRES_DB: $POSTGRES_DB
+    POSTGRES_USER: $TEST_POSTGRES_USER
+    POSTGRES_PASSWORD: $TEST_POSTGRES_PASSWORD
+    POSTGRES_DB: $TEST_POSTGRES_DB
     POSTGRES_HOST_AUTH_METHOD: trust
+  only:
+    - merge_requests
   cache:
     -
-      key: $CI_COMMIT_REF_SLUG-NODE-MODULES
+      key: DEV-POSTGRES
+      paths:
+        - $CI_PROJECT_DIR/application/backend/worker/
+    -
+      key: DEV-NODE-MODULES
       paths:
         - $CI_PROJECT_DIR/application/backend/api/node_modules/
         - $CI_PROJECT_DIR/application/frontend/client/node_modules/
-    -
-      key: $CI_COMMIT_REF_SLUG-POSTGRES
-      paths:
-        - $CI_PROJECT_DIR/application/backend/worker/
   before_script:
     - apk add --no-cache postgresql-client nodejs npm
     ### Packages for Selenium
@@ -166,35 +133,147 @@ smoke test:
 include:
   - template: Code-Quality.gitlab-ci.yml
 code_quality:
+  ### Execute this job only during merge requests
+  rules:
+    - if: $CODE_QUALITY_DISABLED
+      when: never
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
   variables:
     REPORT_FORMAT: html
   artifacts:
     paths: [gl-code-quality-report.html]
 
-create docker images:
-  stage: release
-  image: docker:20.10
-  services:
-    - docker:20.10-dind
-  cache:
-    -
-      key: $CI_COMMIT_REF_SLUG-NODE-MODULES
-      paths:
-        - $CI_PROJECT_DIR/application/backend/api/node_modules/
-    -
-      key: $CI_COMMIT_REF_SLUG-BUILD
-      paths:
-        - $CI_PROJECT_DIR/application/frontend/client/build/
-    -
-      key: $CI_COMMIT_REF_SLUG-POSTGRES
-      paths:
-        - $CI_PROJECT_DIR/application/backend/worker/
+### ###
+### Review
+### ###
+
+verify state locking:
+  stage: prerequisites
+  image:
+    name: hashicorp/terraform:1.2.2
+    entrypoint: [""]
+  only:
+    - main
   before_script:
     - apk add --no-cache curl python3 py3-pip
     - pip3 install awscli
     - aws configure set region $AWS_REGION
   script:
-    - cd ./docker
+    ### Verify if state-lock table exists (i.e. if state lock applied)
+    - aws dynamodb describe-table --table-name product-hunting-terraform-state-lock
+    ### Verify is S3 state storage exists
+    - aws s3 ls product-hunting-terraform-state
+
+apply state locking:
+  stage: prerequisites
+  needs: ["verify state locking"]
+  when: on_failure
+  image:
+    name: hashicorp/terraform:1.2.2
+    entrypoint: [""]
+  only:
+    - main
+  before_script:
+    - apk add --no-cache curl python3 py3-pip
+    - pip3 install awscli
+    - aws configure set region $AWS_REGION
+  script:
+    - cd ./state-lock
+    - terraform init
+    - terraform apply -auto-approve
+
+verify ecr:
+  stage: infrastructure
+  image: alpine:3.16
+  only:
+    - main
+  before_script:
+    - apk add --no-cache python3 py3-pip
+    - pip3 install awscli
+    - aws configure set region $AWS_REGION
+  script:
+    - aws ecr describe-repositories --repository-names product-hunting-postgres product-hunting-api product-hunting-client
+
+store for review:
+  stage: build
+  image: alpine:3.16
+  only:
+    - main
+  cache:
+    -
+      key: REVIEW-POSTGRES
+      paths:
+        - $CI_PROJECT_DIR/application/backend/worker/
+  before_script:
+    - apk add --no-cache python3 py3-pip
+    - pip3 install sqlizer-io-client
+  script:
+    - cd ./application/backend/worker
+    ### GET top 500 most voted posts from Product Hunt API (output .json file)
+    - export API_ACCESS_TOKEN=$PRODUCT_HUNT_API_ACCESS_TOKEN
+    - python3 getTopPosts.py
+    ### Delete emojis inside .json file
+    - sed -i -e 's/\(\\u\).\{4\}//g' posts.json
+    ### Convert JSON to SQL
+    - export API_KEY=$SQLIZER_API_KEY
+    - python3 convertJsonToSql.py
+    ### Reformat fields name & add id field
+    - sed -i 's/list_node_//g' posts.sql
+    - sed -i '2s/^/    "id" SERIAL PRIMARY KEY,\n/' posts.sql
+    - sed -i "s/('/(DEFAULT,'/g" posts.sql
+
+build for review:
+  stage: build
+  image: alpine:3.16
+  only:
+    - main
+  cache:
+    -
+      key: REVIEW-NODE-MODULES
+      paths:
+        - $CI_PROJECT_DIR/application/backend/api/node_modules/
+    -
+      key: REVIEW-BUILD
+      paths:
+        - $CI_PROJECT_DIR/application/frontend/client/build
+  before_script:
+    - apk add --no-cache npm
+  script:
+    ### Server-side
+    - cd $CI_PROJECT_DIR/application/backend/api
+    - npm install express pg cors
+    ### Client-side
+    - cd $CI_PROJECT_DIR/application/frontend/client
+    - npm install
+    - export REACT_APP_API_URL="$REVIEW_API_URL"
+    - npm run build
+
+create docker images for review:
+  stage: release
+  image: docker:20.10
+  services:
+    - docker:20.10-dind
+  only:
+    - main
+  cache:
+    -
+      key: REVIEW-POSTGRES
+      paths:
+        - $CI_PROJECT_DIR/application/backend/worker/
+    -
+      key: REVIEW-NODE-MODULES
+      paths:
+        - $CI_PROJECT_DIR/application/backend/api/node_modules/
+    -
+      key: REVIEW-BUILD
+      paths:
+        - $CI_PROJECT_DIR/application/frontend/client/build/
+  before_script:
+    - apk add --no-cache curl python3 py3-pip
+    - pip3 install awscli
+    - aws configure set region $AWS_REGION
+  script:
+    - cd ./release
     ### Build images
     - |
       docker-compose build \
@@ -205,19 +284,195 @@ create docker images:
     ### Connect to AWS ECR registry
     - aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
     ### Create image tags
-    - docker tag product-hunting-postgres:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/product-hunting-postgres:latest
-    - docker tag product-hunting-api:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/product-hunting-api:latest
-    - docker tag product-hunting-client:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/product-hunting-client:latest
+    - docker tag product-hunting-postgres:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/product-hunting-postgres:review
+    - docker tag product-hunting-api:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/product-hunting-api:review
+    - docker tag product-hunting-client:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/product-hunting-client:review
     ### Push images to ECR
-    - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/product-hunting-postgres:latest
-    - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/product-hunting-api:latest
-    - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/product-hunting-client:latest
+    - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/product-hunting-postgres:review
+    - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/product-hunting-api:review
+    - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/product-hunting-client:review
 
-deploy app with kube:
+deploy review on ecs:
   stage: deploy
   image:
     name: hashicorp/terraform:1.2.2
     entrypoint: [""]
+  only:
+    - main
+  environment:
+    name: review
+    url: $REVIEW_URL
+    on_stop: destroy review
+  before_script:
+    - apk add --no-cache python3 py3-pip
+    ### Install awscli
+    - pip3 install awscli
+    - aws configure set region $AWS_REGION
+    ### Install Docker
+    - apk add --no-cache docker openrc
+  script:
+    ### Connect to AWS ECR registry
+    - aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+    ### Configure Terraform
+    - cd ./deploy/ecs
+    - |
+      cat <<EOF | tee ./main.tfvars
+      ecr_registry = "$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com"
+      aws_account_id = "$AWS_ACCOUNT_ID"
+      EOF
+    - terraform init
+    - terraform refresh -var-file=main.tfvars
+    - terraform apply -var-file=main.tfvars -auto-approve
+
+
+add data to review postgres db:
+  stage: deploy
+  needs: ["deploy review on ecs"]
+  when: on_success
+  image: ubuntu:20.04
+  only:
+    - main
+  before_script:
+    - apt update -y
+    - apt install -y python3 python3-pip
+    ### Install awscli
+    - pip3 install awscli
+    - aws configure set region $AWS_REGION
+    ### Install Session Manager plugin for ecs exec
+    - apt install -y curl dpkg
+    - curl "https://s3.amazonaws.com/session-manager-downloads/plugin/latest/ubuntu_64bit/session-manager-plugin.deb" -o "session-manager-plugin.deb"
+    - dpkg -i session-manager-plugin.deb
+  script:
+    - |
+      TASK_ARN=$(aws ecs list-tasks --output text --cluster product-hunting-ecs-cluster --query 'taskArns[]')
+      aws ecs execute-command --cluster product-hunting-ecs-cluster \
+        --task $TASK_ARN \
+        --container product-hunting-postgres \
+        --interactive \
+        --command "psql -h localhost -U postgres -d product_hunting -f posts.sql"
+
+destroy review:
+  stage: deploy
+  needs: ["add data to review postgres db"]
+  when: manual
+  image:
+    name: hashicorp/terraform:1.2.2
+    entrypoint: [""]
+  only:
+    - main
+  environment:
+    name: review
+    action: stop
+  before_script:
+    - apk add --no-cache curl python3 py3-pip
+    - pip3 install awscli
+    - aws configure set region $AWS_REGION
+  script:
+    - cd ./deploy/ecs
+    - |
+      cat <<EOF | tee ./main.tfvars
+      ecr_registry = "$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com"
+      aws_account_id = "$AWS_ACCOUNT_ID"
+      EOF
+    - terraform init
+    - terraform destroy -var-file=main.tfvars -auto-approve
+
+### ###
+### Production
+### ###
+
+create prod infra:
+  stage: prod infrastructure
+  needs: ["add data to review postgres db"]
+  when: manual
+  image:
+    name: hashicorp/terraform:1.2.2
+    entrypoint: [""]
+  only:
+    - main
+  before_script:
+    - apk add --no-cache curl python3 py3-pip
+    - pip3 install awscli
+    - aws configure set region $AWS_REGION
+  script:
+    - cd ./infrastructure/main
+    ### Add personal public IP inside .tfvars
+    - |
+      cat <<EOF | tee ./main.tfvars
+      my_ip = "$MY_IP/32"
+      EOF
+    - terraform init
+    - terraform apply -var-file=main.tfvars -auto-approve
+
+build client for prod:
+  stage: prod build
+  needs: ["create prod infra"]
+  when: on_success
+  image: alpine:3.16
+  only:
+    - main
+  cache:
+    -
+      key: PROD-BUILD
+      paths:
+        - $CI_PROJECT_DIR/application/frontend/client/build
+  before_script:
+    - apk add --no-cache npm
+  script:
+    - cd $CI_PROJECT_DIR/application/frontend/client
+    - npm install
+    - export REACT_APP_API_URL="$PROD_API_URL"
+    - npm run build
+
+create docker images for prod:
+  stage: prod release
+  needs: ["build client for prod"]
+  when: on_success
+  image: docker:20.10
+  services:
+    - docker:20.10-dind
+  only:
+    - main
+  cache:
+    -
+      key: PROD-BUILD
+      paths:
+        - $CI_PROJECT_DIR/application/frontend/client/build/
+  before_script:
+    - apk add --no-cache python3 py3-pip jq
+    - pip3 install awscli
+    - aws configure set region $AWS_REGION
+  script:
+    ### Add tag to postgres image
+    - aws ecr batch-delete-image --repository-name product-hunting-postgres --image-ids imageTag="prod"
+    - MANIFEST=$(aws ecr batch-get-image --repository-name product-hunting-postgres --image-ids imageTag=review --output json | jq --raw-output --join-output '.images[0].imageManifest')
+    - aws ecr put-image --repository-name product-hunting-postgres --image-tag prod --image-manifest "$MANIFEST"
+    ### Add tag to api image
+    - aws ecr batch-delete-image --repository-name product-hunting-api --image-ids imageTag="prod"
+    - MANIFEST=$(aws ecr batch-get-image --repository-name product-hunting-api --image-ids imageTag=review --output json | jq --raw-output --join-output '.images[0].imageManifest')
+    - aws ecr put-image --repository-name product-hunting-api --image-tag prod --image-manifest "$MANIFEST"
+    ### Recreate client image
+    - cd ./release
+    - docker-compose build --no-cache client
+    ### Connect to AWS ECR registry
+    - aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+    ### Create image tag
+    - docker tag product-hunting-client:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/product-hunting-client:prod
+    ### Push image to ECR
+    - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/product-hunting-client:prod
+
+deploy prod on eks:
+  stage: prod deploy
+  needs: ["create docker images for prod"]
+  when: on_success
+  image:
+    name: hashicorp/terraform:1.2.2
+    entrypoint: [""]
+  only:
+    - main
+  environment:
+    name: production
+    url: $PROD_URL
   before_script:
     - apk add --no-cache curl python3 py3-pip
     ### Install awscli
@@ -235,7 +490,7 @@ deploy app with kube:
     ### Connect to AWS ECR registry
     - aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
     ### Configure Terraform
-    - cd ./deploy-k8s
+    - cd ./deploy/eks
     - |
       cat <<EOF | tee ./main.tfvars
       ecr_registry = "$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com"
