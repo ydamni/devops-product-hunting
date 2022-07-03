@@ -2,7 +2,7 @@ resource "aws_s3_bucket" "product-hunting-s3-bucket" {
   bucket = "product-hunting-terraform-state"
 
   tags = {
-    Name        = "product-hunting-s3-bucket"
+    Name = "product-hunting-s3-bucket"
   }
 }
 
@@ -19,9 +19,9 @@ resource "aws_s3_bucket_versioning" "product-hunting-s3-bucket-versioning" {
 }
 
 resource "aws_dynamodb_table" "product-hunting-dynamodb-table" {
-  name           = "product-hunting-terraform-state-lock"
-  billing_mode   = "PAY_PER_REQUEST"
-  hash_key       = "LockID"
+  name         = "product-hunting-terraform-state-lock"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "LockID"
 
   attribute {
     name = "LockID"
@@ -29,6 +29,6 @@ resource "aws_dynamodb_table" "product-hunting-dynamodb-table" {
   }
 
   tags = {
-    Name        = "product-hunting-terraform-state-lock"
+    Name = "product-hunting-terraform-state-lock"
   }
 }

@@ -2,9 +2,9 @@
 
 terraform {
   backend "s3" {
-    bucket = "product-hunting-terraform-state"
-    key    = "review/deploy/terraform.tfstate"
-    region = "us-east-1"
+    bucket         = "product-hunting-terraform-state"
+    key            = "review/deploy/terraform.tfstate"
+    region         = "us-east-1"
     dynamodb_table = "product-hunting-terraform-state-lock"
   }
 }
@@ -49,15 +49,15 @@ resource "aws_iam_role" "product-hunting-role-ecs-exec" {
   name = "product-hunting-role-ecs-exec"
 
   assume_role_policy = jsonencode({
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Effect": "Allow",
-            "Principal": {
-                "Service": "ecs-tasks.amazonaws.com"
-            },
-            "Action": "sts:AssumeRole"
-        }
+    "Version" : "2012-10-17",
+    "Statement" : [
+      {
+        "Effect" : "Allow",
+        "Principal" : {
+          "Service" : "ecs-tasks.amazonaws.com"
+        },
+        "Action" : "sts:AssumeRole"
+      }
     ]
   })
 }
@@ -66,18 +66,18 @@ resource "aws_iam_policy" "product-hunting-policy-ecs-exec" {
   name = "ProductHuntingECSExecPolicy"
 
   policy = jsonencode({
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Effect": "Allow",
-            "Action": [
-                "ssmmessages:CreateControlChannel",
-                "ssmmessages:CreateDataChannel",
-                "ssmmessages:OpenControlChannel",
-                "ssmmessages:OpenDataChannel"
-            ],
-            "Resource": "*"
-        }
+    "Version" : "2012-10-17",
+    "Statement" : [
+      {
+        "Effect" : "Allow",
+        "Action" : [
+          "ssmmessages:CreateControlChannel",
+          "ssmmessages:CreateDataChannel",
+          "ssmmessages:OpenControlChannel",
+          "ssmmessages:OpenDataChannel"
+        ],
+        "Resource" : "*"
+      }
     ]
   })
 }
@@ -144,11 +144,11 @@ resource "aws_ecs_task_definition" "product-hunting-ecs-td" {
 }
 
 resource "aws_ecs_service" "product-hunting-ecs-service" {
-  name            = "product-hunting-ecs-service"
-  cluster         = aws_ecs_cluster.product-hunting-ecs-cluster.id
-  task_definition = aws_ecs_task_definition.product-hunting-ecs-td.arn
-  desired_count   = 1
-  launch_type     = "FARGATE"
+  name                   = "product-hunting-ecs-service"
+  cluster                = aws_ecs_cluster.product-hunting-ecs-cluster.id
+  task_definition        = aws_ecs_task_definition.product-hunting-ecs-td.arn
+  desired_count          = 1
+  launch_type            = "FARGATE"
   enable_execute_command = true
   network_configuration {
     subnets          = [data.aws_subnets.product-hunting-aws-subnets.ids[0], data.aws_subnets.product-hunting-aws-subnets.ids[1]]
@@ -168,7 +168,7 @@ resource "time_sleep" "wait_60_seconds" {
 
 data "aws_network_interface" "product-hunting-eni" {
   filter {
-    name = "group-id"
+    name   = "group-id"
     values = [data.aws_security_groups.product-hunting-aws-sg.ids[0], data.aws_security_groups.product-hunting-aws-sg.ids[1]]
   }
   depends_on = [time_sleep.wait_60_seconds]

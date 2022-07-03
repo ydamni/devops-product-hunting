@@ -1,8 +1,8 @@
 terraform {
   backend "s3" {
-    bucket = "product-hunting-terraform-state"
-    key    = "prod/terraform.tfstate"
-    region = "us-east-1"
+    bucket         = "product-hunting-terraform-state"
+    key            = "prod/terraform.tfstate"
+    region         = "us-east-1"
     dynamodb_table = "product-hunting-terraform-state-lock"
   }
 }
