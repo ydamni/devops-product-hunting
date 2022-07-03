@@ -1,4 +1,18 @@
-### EKS resources
+terraform {
+  backend "s3" {
+    bucket = "product-hunting-terraform-state"
+    key    = "prod/terraform.tfstate"
+    region = "us-east-1"
+    dynamodb_table = "product-hunting-terraform-state-lock"
+  }
+}
+
+data "aws_subnets" "product-hunting-aws-subnets" {
+  filter {
+    name   = "tag:Name"
+    values = ["product-hunting-subnet-public-1", "product-hunting-subnet-public-2"]
+  }
+}
 
 resource "aws_iam_role" "product-hunting-role-eks-cluster" {
   name = "product-hunting-role-eks-cluster"
@@ -34,7 +48,7 @@ resource "aws_eks_cluster" "product-hunting-eks-cluster" {
   role_arn = aws_iam_role.product-hunting-role-eks-cluster.arn
 
   vpc_config {
-    subnet_ids = [var.product-hunting-subnet-public-1-id, var.product-hunting-subnet-public-2-id]
+    subnet_ids = [data.aws_subnets.product-hunting-aws-subnets.ids[0], data.aws_subnets.product-hunting-aws-subnets.ids[1]]
   }
 
   depends_on = [
@@ -81,7 +95,7 @@ resource "aws_eks_node_group" "product-hunting-eks-node-group" {
   cluster_name    = aws_eks_cluster.product-hunting-eks-cluster.name
   node_group_name = "product-hunting-eks-node-group"
   node_role_arn   = aws_iam_role.product-hunting-role-eks-node-group.arn
-  subnet_ids      = [var.product-hunting-subnet-public-1-id, var.product-hunting-subnet-public-2-id]
+  subnet_ids      = [data.aws_subnets.product-hunting-aws-subnets.ids[0], data.aws_subnets.product-hunting-aws-subnets.ids[1]]
   instance_types  = ["t2.micro"]
 
   scaling_config {
