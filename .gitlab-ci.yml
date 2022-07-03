@@ -8,10 +8,10 @@ variables:
   ### Application
   LOCAL_API_URL: http://localhost:5000/posts
   REVIEW_API_URL: http://review.devops-product-hunting.com:5000/posts
-  PROD_API_URL: http://devops-product-hunting.com:5000/posts
+  PROD_API_URL: https://devops-product-hunting.com:5000/posts
   ### Environments
   REVIEW_URL: http://review.devops-product-hunting.com
-  PROD_URL: http://devops-product-hunting.com
+  PROD_URL: https://devops-product-hunting.com
 
 stages:
   - prerequisites
@@ -512,12 +512,18 @@ deploy prod on eks:
     - terraform init
     - terraform refresh -var-file=main.tfvars
     - terraform apply -var-file=main.tfvars -auto-approve
+    - LIST_PODS=$(kubectl get pods --no-headers -o custom-columns=":metadata.name" | grep product-hunting)
     ### Add data to DB:
     - |
-      LIST_PODS=$(kubectl get pods --no-headers -o custom-columns=":metadata.name" | grep product-hunting)
       for pod in $LIST_PODS; do
           IS_TABLE_CREATED=$(kubectl exec $pod --container product-hunting-postgres -- psql -h localhost -U $POSTGRES_USER -d $POSTGRES_DB -c '\dt' | { grep posts || true; })
           if [ -z "$IS_TABLE_CREATED" ]; then
               kubectl exec $pod --container product-hunting-postgres -- psql -h localhost -U $POSTGRES_USER -d $POSTGRES_DB -f posts.sql
           fi
+      done
+    ### Edit Nginx conf file:
+    - |
+      for pod in $LIST_PODS; do
+          kubectl cp nginx_conf/default.conf $pod:/etc/nginx/conf.d/ --container product-hunting-client
+          kubectl exec $pod --container product-hunting-client -- nginx -s reload
       done
