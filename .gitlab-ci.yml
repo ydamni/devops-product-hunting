@@ -20,6 +20,7 @@ stages:
   - test
   - release
   - deploy
+  - prod prerequisites
   - prod infrastructure
   - prod build
   - prod release
@@ -155,7 +156,7 @@ verify state locking:
   only:
     - main
   before_script:
-    - apk add --no-cache curl python3 py3-pip
+    - apk add --no-cache python3 py3-pip
     - pip3 install awscli
     - aws configure set region $AWS_REGION
   script:
@@ -174,7 +175,7 @@ apply state locking:
   only:
     - main
   before_script:
-    - apk add --no-cache curl python3 py3-pip
+    - apk add --no-cache python3 py3-pip
     - pip3 install awscli
     - aws configure set region $AWS_REGION
   script:
@@ -182,9 +183,11 @@ apply state locking:
     - terraform init
     - terraform apply -auto-approve
 
-verify ecr:
+create main infra:
   stage: infrastructure
-  image: alpine:3.16
+  image:
+    name: hashicorp/terraform:1.2.2
+    entrypoint: [""]
   only:
     - main
   before_script:
@@ -192,7 +195,14 @@ verify ecr:
     - pip3 install awscli
     - aws configure set region $AWS_REGION
   script:
-    - aws ecr describe-repositories --repository-names product-hunting-postgres product-hunting-api product-hunting-client
+    - cd ./infrastructure/main
+    ### Add personal public IP inside .tfvars
+    - |
+      cat <<EOF | tee ./main.tfvars
+      my_ip = "$MY_IP/32"
+      EOF
+    - terraform init
+    - terraform apply -var-file=main.tfvars -auto-approve
 
 store for review:
   stage: build
@@ -269,7 +279,7 @@ create docker images for review:
       paths:
         - $CI_PROJECT_DIR/application/frontend/client/build/
   before_script:
-    - apk add --no-cache curl python3 py3-pip
+    - apk add --no-cache python3 py3-pip
     - pip3 install awscli
     - aws configure set region $AWS_REGION
   script:
@@ -321,9 +331,7 @@ deploy review on ecs:
       aws_account_id = "$AWS_ACCOUNT_ID"
       EOF
     - terraform init
-    - terraform refresh -var-file=main.tfvars
     - terraform apply -var-file=main.tfvars -auto-approve
-
 
 add data to review postgres db:
   stage: deploy
@@ -364,7 +372,7 @@ destroy review:
     name: review
     action: stop
   before_script:
-    - apk add --no-cache curl python3 py3-pip
+    - apk add --no-cache python3 py3-pip
     - pip3 install awscli
     - aws configure set region $AWS_REGION
   script:
@@ -381,32 +389,38 @@ destroy review:
 ### Production
 ### ###
 
-create prod infra:
-  stage: prod infrastructure
+push to prod:
+  stage: prod prerequisites
   needs: ["add data to review postgres db"]
   when: manual
+  variables:
+    GIT_STRATEGY: none
+  only:
+    - main
+  script:
+    - ""
+
+create prod infra:
+  stage: prod infrastructure
+  needs: ["push to prod"]
+  when: on_success
   image:
     name: hashicorp/terraform:1.2.2
     entrypoint: [""]
   only:
     - main
   before_script:
-    - apk add --no-cache curl python3 py3-pip
+    - apk add --no-cache python3 py3-pip
     - pip3 install awscli
     - aws configure set region $AWS_REGION
   script:
-    - cd ./infrastructure/main
-    ### Add personal public IP inside .tfvars
-    - |
-      cat <<EOF | tee ./main.tfvars
-      my_ip = "$MY_IP/32"
-      EOF
+    - cd ./infrastructure/prod
     - terraform init
-    - terraform apply -var-file=main.tfvars -auto-approve
+    - terraform apply -auto-approve
 
 build client for prod:
   stage: prod build
-  needs: ["create prod infra"]
+  needs: ["push to prod"]
   when: on_success
   image: alpine:3.16
   only:
@@ -463,7 +477,7 @@ create docker images for prod:
 
 deploy prod on eks:
   stage: prod deploy
-  needs: ["create docker images for prod"]
+  needs: ["create prod infra", "create docker images for prod"]
   when: on_success
   image:
     name: hashicorp/terraform:1.2.2
