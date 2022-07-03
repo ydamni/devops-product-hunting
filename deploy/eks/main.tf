@@ -26,7 +26,7 @@ resource "kubernetes_service" "product-hunting-kube-service" {
     annotations = {
       "service.beta.kubernetes.io/aws-load-balancer-ssl-cert"         = data.aws_acm_certificate.product-hunting-acm-certificate.arn
       "service.beta.kubernetes.io/aws-load-balancer-backend-protocol" = "tcp"
-      "service.beta.kubernetes.io/aws-load-balancer-ssl-ports"        = "443"
+      "service.beta.kubernetes.io/aws-load-balancer-ssl-ports"        = "443,5000"
     }
     labels = {
       app = "product-hunting"
