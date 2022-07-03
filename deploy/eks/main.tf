@@ -15,9 +15,19 @@ provider "kubernetes" {
   config_path = "~/.kube/config"
 }
 
+data "aws_acm_certificate" "product-hunting-acm-certificate" {
+  domain   = "devops-product-hunting.com"
+  statuses = ["ISSUED"]
+}
+
 resource "kubernetes_service" "product-hunting-kube-service" {
   metadata {
     name = "product-hunting"
+    annotations = {
+      "service.beta.kubernetes.io/aws-load-balancer-ssl-cert"         = data.aws_acm_certificate.product-hunting-acm-certificate.arn
+      "service.beta.kubernetes.io/aws-load-balancer-backend-protocol" = "tcp"
+      "service.beta.kubernetes.io/aws-load-balancer-ssl-ports"        = "443"
+    }
     labels = {
       app = "product-hunting"
     }
@@ -34,6 +44,12 @@ resource "kubernetes_service" "product-hunting-kube-service" {
       name        = "http"
       port        = 80
       target_port = 80
+    }
+
+    port {
+      name        = "https"
+      port        = 443
+      target_port = 443
     }
 
     port {
@@ -98,6 +114,10 @@ resource "kubernetes_deployment" "product-hunting-kube-deployment" {
 
           port {
             container_port = 80
+          }
+
+          port {
+            container_port = 443
           }
         }
       }
