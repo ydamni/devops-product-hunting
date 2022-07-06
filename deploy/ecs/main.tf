@@ -11,21 +11,194 @@ terraform {
 
 ### Add VPC
 
-data "aws_subnets" "product-hunting-aws-subnets" {
+data "aws_vpc" "product-hunting-vpc" {
   filter {
     name   = "tag:Name"
-    values = ["product-hunting-subnet-public-1", "product-hunting-subnet-public-2"]
+    values = ["product-hunting-vpc"]
   }
 }
 
-data "aws_security_groups" "product-hunting-aws-sg" {
+data "aws_subnets" "product-hunting-subnets" {
   filter {
-    name   = "tag:Name"
-    values = ["product-hunting-sg-allow-http", "product-hunting-sg-allow-api"]
+    name = "tag:Name"
+    values = [
+      "product-hunting-subnet-public-1",
+      "product-hunting-subnet-public-2"
+    ]
   }
 }
 
-### ECS resources
+### Add AWS Certificate Manager certificate
+
+data "aws_acm_certificate" "product-hunting-acm-certificate" {
+  domain   = "devops-product-hunting.com"
+  statuses = ["ISSUED"]
+}
+
+### Security groups
+
+resource "aws_security_group" "product-hunting-sg-lb" {
+  name   = "product-hunting-sg-lb"
+  vpc_id = data.aws_vpc.product-hunting-vpc.id
+
+  ingress {
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = [var.my_ip]
+  }
+
+  ingress {
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = [var.my_ip]
+  }
+
+  ingress {
+    from_port   = 5000
+    to_port     = 5000
+    protocol    = "tcp"
+    cidr_blocks = [var.my_ip]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+resource "aws_security_group" "product-hunting-sg-ecs" {
+  name   = "product-hunting-sg-ecs"
+  vpc_id = data.aws_vpc.product-hunting-vpc.id
+
+  ingress {
+    from_port = 0
+    to_port   = 0
+    protocol  = "-1"
+    security_groups = [
+      aws_security_group.product-hunting-sg-lb.id
+    ]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+### Load Balancer for ECS
+
+resource "aws_lb" "product-hunting-lb" {
+  name               = "product-hunting-lb"
+  load_balancer_type = "application"
+  subnets = [
+    data.aws_subnets.product-hunting-subnets.ids[0],
+    data.aws_subnets.product-hunting-subnets.ids[1]
+  ]
+  security_groups = [
+    aws_security_group.product-hunting-sg-lb.id
+  ]
+}
+
+resource "aws_lb_target_group" "product-hunting-lb-target-group-http" {
+  name        = "product-hunting-tg-http"
+  target_type = "ip"
+  port        = 80
+  protocol    = "HTTP"
+  vpc_id      = data.aws_vpc.product-hunting-vpc.id
+
+  health_check {
+    healthy_threshold   = "2"
+    unhealthy_threshold = "3"
+    timeout             = "10"
+    interval            = "30"
+    protocol            = "HTTP"
+    matcher             = "200,301,302" ### 301 & 302 => Redirect
+    path                = "/"
+  }
+}
+
+resource "aws_lb_target_group" "product-hunting-lb-target-group-https" {
+  name        = "product-hunting-tg-https"
+  target_type = "ip"
+  port        = 443
+  protocol    = "HTTP"
+  vpc_id      = data.aws_vpc.product-hunting-vpc.id
+
+  health_check {
+    healthy_threshold   = "2"
+    unhealthy_threshold = "3"
+    timeout             = "10"
+    interval            = "30"
+    protocol            = "HTTP"
+    matcher             = "200"
+    path                = "/"
+  }
+}
+
+resource "aws_lb_target_group" "product-hunting-lb-target-group-api" {
+  name        = "product-hunting-tg-api"
+  target_type = "ip"
+  port        = 5000
+  protocol    = "HTTP"
+  vpc_id      = data.aws_vpc.product-hunting-vpc.id
+
+  health_check {
+    healthy_threshold   = "2"
+    unhealthy_threshold = "3"
+    timeout             = "30"
+    interval            = "60"
+    protocol            = "HTTP"
+    matcher             = "200"
+    path                = "/posts/1"
+  }
+}
+
+resource "aws_lb_listener" "product-hunting-lb-listener-http" {
+  load_balancer_arn = aws_lb.product-hunting-lb.id
+  port              = 80
+  protocol          = "HTTP"
+
+  default_action {
+    target_group_arn = aws_lb_target_group.product-hunting-lb-target-group-http.id
+    type             = "forward"
+  }
+}
+
+resource "aws_lb_listener" "product-hunting-lb-listener-https" {
+  load_balancer_arn = aws_lb.product-hunting-lb.id
+  port              = 443
+  protocol          = "HTTPS"
+
+  ssl_policy      = "ELBSecurityPolicy-2016-08"
+  certificate_arn = data.aws_acm_certificate.product-hunting-acm-certificate.arn
+
+  default_action {
+    target_group_arn = aws_lb_target_group.product-hunting-lb-target-group-https.id
+    type             = "forward"
+  }
+}
+
+resource "aws_lb_listener" "product-hunting-lb-listener-api" {
+  load_balancer_arn = aws_lb.product-hunting-lb.id
+  port              = 5000
+  protocol          = "HTTPS"
+
+  ssl_policy      = "ELBSecurityPolicy-2016-08"
+  certificate_arn = data.aws_acm_certificate.product-hunting-acm-certificate.arn
+
+  default_action {
+    target_group_arn = aws_lb_target_group.product-hunting-lb-target-group-api.id
+    type             = "forward"
+  }
+}
+
+### ECS Resources
 
 resource "aws_ecs_cluster" "product-hunting-ecs-cluster" {
   name = "product-hunting-ecs-cluster"
@@ -93,8 +266,8 @@ resource "aws_ecs_task_definition" "product-hunting-ecs-td" {
   family                   = "product-hunting-td"
   requires_compatibilities = ["FARGATE"]
   network_mode             = "awsvpc"
-  cpu                      = 512
-  memory                   = 1024
+  cpu                      = 1024
+  memory                   = 3072
   execution_role_arn       = data.aws_iam_role.product-hunting-ecs_task_execution_role.arn
   task_role_arn            = aws_iam_role.product-hunting-role-ecs-exec.arn
 
@@ -102,15 +275,15 @@ resource "aws_ecs_task_definition" "product-hunting-ecs-td" {
     {
       name      = "product-hunting-postgres"
       image     = "${var.ecr_registry}/product-hunting-postgres:review"
-      cpu       = 256
-      memory    = 512
+      cpu       = 512
+      memory    = 1536
       essential = true
     },
     {
       name      = "product-hunting-api"
       image     = "${var.ecr_registry}/product-hunting-api:review"
-      cpu       = 128
-      memory    = 256
+      cpu       = 256
+      memory    = 1024
       essential = true
       environment = [
         {
@@ -128,13 +301,17 @@ resource "aws_ecs_task_definition" "product-hunting-ecs-td" {
     {
       name      = "product-hunting-client"
       image     = "${var.ecr_registry}/product-hunting-client:review"
-      cpu       = 128
-      memory    = 256
+      cpu       = 256
+      memory    = 512
       essential = true
       portMappings = [
         {
           containerPort = 80
           hostPort      = 80
+        },
+        {
+          containerPort = 443
+          hostPort      = 443
         }
       ]
     }
@@ -151,38 +328,48 @@ resource "aws_ecs_service" "product-hunting-ecs-service" {
   launch_type            = "FARGATE"
   enable_execute_command = true
   network_configuration {
-    subnets          = [data.aws_subnets.product-hunting-aws-subnets.ids[0], data.aws_subnets.product-hunting-aws-subnets.ids[1]]
-    security_groups  = [data.aws_security_groups.product-hunting-aws-sg.ids[0], data.aws_security_groups.product-hunting-aws-sg.ids[1]]
+    subnets = [
+      data.aws_subnets.product-hunting-subnets.ids[0],
+      data.aws_subnets.product-hunting-subnets.ids[1]
+    ]
+    security_groups  = [aws_security_group.product-hunting-sg-ecs.id]
     assign_public_ip = true
+  }
+
+  load_balancer {
+    target_group_arn = aws_lb_target_group.product-hunting-lb-target-group-http.arn
+    container_name   = "product-hunting-client"
+    container_port   = 80
+  }
+
+  load_balancer {
+    target_group_arn = aws_lb_target_group.product-hunting-lb-target-group-https.arn
+    container_name   = "product-hunting-client"
+    container_port   = 443
+  }
+
+  load_balancer {
+    target_group_arn = aws_lb_target_group.product-hunting-lb-target-group-api.arn
+    container_name   = "product-hunting-api"
+    container_port   = 5000
   }
 }
 
 ### Route 53 Zone record
 
-### Wait for ENI to link with Fargate Task
-resource "time_sleep" "wait_60_seconds" {
-  depends_on = [aws_ecs_service.product-hunting-ecs-service]
-
-  create_duration = "60s"
-}
-
-data "aws_network_interface" "product-hunting-eni" {
-  filter {
-    name   = "group-id"
-    values = [data.aws_security_groups.product-hunting-aws-sg.ids[0], data.aws_security_groups.product-hunting-aws-sg.ids[1]]
-  }
-  depends_on = [time_sleep.wait_60_seconds]
-}
-
-data "aws_route53_zone" "product-hunting-aws-route53-zone" {
+data "aws_route53_zone" "product-hunting-route53-zone" {
   name         = "devops-product-hunting.com."
   private_zone = false
 }
 
-resource "aws_route53_record" "product-hunting-aws-route53-record" {
-  zone_id = data.aws_route53_zone.product-hunting-aws-route53-zone.zone_id
+resource "aws_route53_record" "product-hunting-route53-record" {
+  zone_id = data.aws_route53_zone.product-hunting-route53-zone.zone_id
   name    = "review.devops-product-hunting.com"
   type    = "A"
-  ttl     = "300"
-  records = [data.aws_network_interface.product-hunting-eni.association[0].public_ip]
+
+  alias {
+    name                   = aws_lb.product-hunting-lb.dns_name
+    zone_id                = aws_lb.product-hunting-lb.zone_id
+    evaluate_target_health = true
+  }
 }

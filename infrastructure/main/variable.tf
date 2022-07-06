@@ -1,2 +1,0 @@
-variable "my_ip" {
-}

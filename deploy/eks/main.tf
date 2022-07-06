@@ -9,15 +9,17 @@ terraform {
   }
 }
 
-### Kubernetes resources
-
-provider "kubernetes" {
-  config_path = "~/.kube/config"
-}
+### Add AWS Certificate Manager certificate
 
 data "aws_acm_certificate" "product-hunting-acm-certificate" {
   domain   = "devops-product-hunting.com"
   statuses = ["ISSUED"]
+}
+
+### Kubernetes resources
+
+provider "kubernetes" {
+  config_path = "~/.kube/config"
 }
 
 resource "kubernetes_service" "product-hunting-kube-service" {
@@ -131,25 +133,25 @@ locals {
   elb_name = split("-", split(".", kubernetes_service.product-hunting-kube-service.status.0.load_balancer.0.ingress.0.hostname).0).0
 }
 
-data "aws_elb" "product-hunting-aws-elb" {
+data "aws_elb" "product-hunting-elb" {
   name = local.elb_name
 }
 
 ### Route 53 Zone record
 
-data "aws_route53_zone" "product-hunting-aws-route53-zone" {
+data "aws_route53_zone" "product-hunting-route53-zone" {
   name         = "devops-product-hunting.com."
   private_zone = false
 }
 
-resource "aws_route53_record" "product-hunting-aws-route53-record" {
-  zone_id = data.aws_route53_zone.product-hunting-aws-route53-zone.zone_id
+resource "aws_route53_record" "product-hunting-route53-record" {
+  zone_id = data.aws_route53_zone.product-hunting-route53-zone.zone_id
   name    = "devops-product-hunting.com"
   type    = "A"
 
   alias {
-    name                   = data.aws_elb.product-hunting-aws-elb.dns_name
-    zone_id                = data.aws_elb.product-hunting-aws-elb.zone_id
+    name                   = data.aws_elb.product-hunting-elb.dns_name
+    zone_id                = data.aws_elb.product-hunting-elb.zone_id
     evaluate_target_health = true
   }
 }

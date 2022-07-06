@@ -9,6 +9,9 @@ WORKDIR /usr/share/nginx/html
 ### Example in shell: cp application/frontend/client/build/* /usr/share/nginx/html
 ADD build .
 
+### Replace the nginx configuration file
+COPY nginx_conf/default.conf /etc/nginx/conf.d/
+
 ### ### Run server API
-### Expose web app port 80
-EXPOSE 80
+### Expose web app port 80 & 443
+EXPOSE 80 443

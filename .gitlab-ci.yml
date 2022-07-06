@@ -7,10 +7,10 @@ variables:
   TEST_POSTGRES_DB: test_product_hunting
   ### Application
   LOCAL_API_URL: http://localhost:5000/posts
-  REVIEW_API_URL: http://review.devops-product-hunting.com:5000/posts
+  REVIEW_API_URL: https://review.devops-product-hunting.com:5000/posts
   PROD_API_URL: https://devops-product-hunting.com:5000/posts
   ### Environments
-  REVIEW_URL: http://review.devops-product-hunting.com
+  REVIEW_URL: https://review.devops-product-hunting.com
   PROD_URL: https://devops-product-hunting.com
 
 stages:
@@ -196,13 +196,8 @@ create main infra:
     - aws configure set region $AWS_REGION
   script:
     - cd ./infrastructure/main
-    ### Add personal public IP inside .tfvars
-    - |
-      cat <<EOF | tee ./main.tfvars
-      my_ip = "$MY_IP/32"
-      EOF
     - terraform init
-    - terraform apply -var-file=main.tfvars -auto-approve
+    - terraform apply -auto-approve
 
 store for review:
   stage: build
@@ -329,6 +324,7 @@ deploy review on ecs:
       cat <<EOF | tee ./main.tfvars
       ecr_registry = "$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com"
       aws_account_id = "$AWS_ACCOUNT_ID"
+      my_ip = "$MY_IP"
       EOF
     - terraform init
     - terraform apply -var-file=main.tfvars -auto-approve
@@ -381,6 +377,7 @@ destroy review:
       cat <<EOF | tee ./main.tfvars
       ecr_registry = "$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com"
       aws_account_id = "$AWS_ACCOUNT_ID"
+      my_ip = "$MY_IP"
       EOF
     - terraform init
     - terraform destroy -var-file=main.tfvars -auto-approve
@@ -520,10 +517,4 @@ deploy prod on eks:
           if [ -z "$IS_TABLE_CREATED" ]; then
               kubectl exec $pod --container product-hunting-postgres -- psql -h localhost -U $POSTGRES_USER -d $POSTGRES_DB -f posts.sql
           fi
-      done
-    ### Edit Nginx conf file:
-    - |
-      for pod in $LIST_PODS; do
-          kubectl cp nginx_conf/default.conf $pod:/etc/nginx/conf.d/ --container product-hunting-client
-          kubectl exec $pod --container product-hunting-client -- nginx -s reload
       done

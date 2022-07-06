@@ -13,6 +13,4 @@ module "ecr" {
 
 module "vpc" {
   source = "./vpc"
-
-  my_ip = var.my_ip
 }
