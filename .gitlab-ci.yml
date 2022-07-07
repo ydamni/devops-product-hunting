@@ -477,7 +477,9 @@ deploy prod on eks:
     - terraform init
     - terraform refresh -var-file=main.tfvars
     - terraform apply -var-file=main.tfvars -auto-approve
-    - LIST_PODS=$(kubectl get pods --no-headers -o custom-columns=":metadata.name" | grep product-hunting)
+    ### Get pods from most recent replicaset
+    - REPLICASET=$(kubectl get replicaset.apps --sort-by=.metadata.creationTimestamp --no-headers -o custom-columns=":metadata.name" | grep product-hunting | tail -1)
+    - LIST_PODS=$(kubectl get pods --no-headers -o custom-columns=":metadata.name" | grep $REPLICASET)
     ### Add data to DB:
     - |
       for pod in $LIST_PODS; do
