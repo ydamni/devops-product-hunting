@@ -1,10 +1,6 @@
 variables:
   ### AWS
   AWS_REGION: us-east-1
-  ### Postgres for test stage
-  TEST_POSTGRES_USER: test_postgres
-  TEST_POSTGRES_PASSWORD: just_for_test
-  TEST_POSTGRES_DB: test_product_hunting
   ### Application
   LOCAL_API_URL: http://localhost:5000/posts
   REVIEW_API_URL: https://review.devops-product-hunting.com:5000/posts
@@ -57,10 +53,9 @@ smoke test:
   services:
     - postgres:alpine3.16
   variables:
-    POSTGRES_USER: $TEST_POSTGRES_USER
-    POSTGRES_PASSWORD: $TEST_POSTGRES_PASSWORD
-    POSTGRES_DB: $TEST_POSTGRES_DB
-    POSTGRES_HOST_AUTH_METHOD: trust
+    POSTGRES_USER: test_user
+    POSTGRES_PASSWORD: test_password
+    POSTGRES_DB: test_db
   only:
     - merge_requests
   cache:
@@ -77,6 +72,7 @@ smoke test:
   script:
     ### Push .sql file to Postgres DB
     - cd $CI_PROJECT_DIR/merge-request
+    - export PGPASSWORD="$POSTGRES_PASSWORD"
     - psql -h postgres -U $POSTGRES_USER -d $POSTGRES_DB -f sample_posts.sql
     ### Launch server API
     - cd $CI_PROJECT_DIR/application/backend/api
