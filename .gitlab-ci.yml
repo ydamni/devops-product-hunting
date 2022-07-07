@@ -349,6 +349,7 @@ destroy review:
       ecr_registry = "$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com"
       aws_account_id = "$AWS_ACCOUNT_ID"
       my_ip = "$MY_IP"
+      ci_commit_short_sha = "$CI_COMMIT_SHORT_SHA"
       EOF
     - terraform init
     - terraform destroy -var-file=main.tfvars -auto-approve
