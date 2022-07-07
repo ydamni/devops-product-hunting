@@ -1,3 +1,8 @@
+### Get current region
+
+data "aws_region" "product-hunting-region" {
+}
+
 ### Network resources
 
 resource "aws_vpc" "product-hunting-vpc" {
@@ -13,7 +18,7 @@ resource "aws_vpc" "product-hunting-vpc" {
 resource "aws_subnet" "product-hunting-subnet-public-1" {
   vpc_id                  = aws_vpc.product-hunting-vpc.id
   cidr_block              = "192.168.42.0/26"
-  availability_zone       = "us-east-1a"
+  availability_zone       = "${data.aws_region.product-hunting-region.name}a"
   map_public_ip_on_launch = "true"
 
   tags = {
@@ -24,7 +29,7 @@ resource "aws_subnet" "product-hunting-subnet-public-1" {
 resource "aws_subnet" "product-hunting-subnet-public-2" {
   vpc_id                  = aws_vpc.product-hunting-vpc.id
   cidr_block              = "192.168.42.64/26"
-  availability_zone       = "us-east-1b"
+  availability_zone       = "${data.aws_region.product-hunting-region.name}b"
   map_public_ip_on_launch = "true"
 
   tags = {
