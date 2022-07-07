@@ -313,7 +313,7 @@ add data to review postgres db:
         --task $TASK_ARN \
         --container product-hunting-postgres \
         --interactive \
-        --command "psql -h localhost -U postgres -d product_hunting -f posts.sql"
+        --command "sh -c 'PGPASSWORD=$POSTGRES_PASSWORD psql -h localhost -U postgres -d product_hunting -f posts.sql'"
 
 destroy review:
   stage: deploy
@@ -471,8 +471,8 @@ deploy prod on eks:
     ### Add data to DB:
     - |
       for pod in $LIST_PODS; do
-          IS_TABLE_CREATED=$(kubectl exec $pod --container product-hunting-postgres -- psql -h localhost -U $POSTGRES_USER -d $POSTGRES_DB -c '\dt' | { grep posts || true; })
+          IS_TABLE_CREATED=$(kubectl exec $pod --container product-hunting-postgres -- sh -c 'PGPASSWORD=$POSTGRES_PASSWORD psql -h localhost -U $POSTGRES_USER -d $POSTGRES_DB -c "\dt" | { grep posts || true; }')
           if [ -z "$IS_TABLE_CREATED" ]; then
-              kubectl exec $pod --container product-hunting-postgres -- psql -h localhost -U $POSTGRES_USER -d $POSTGRES_DB -f posts.sql
+              kubectl exec $pod --container product-hunting-postgres -- sh -c 'PGPASSWORD=$POSTGRES_PASSWORD psql -h localhost -U postgres -d product_hunting -f posts.sql'
           fi
       done

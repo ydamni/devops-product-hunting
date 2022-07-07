@@ -14,7 +14,6 @@ ARG POSTGRES_DB
 ENV POSTGRES_USER=$POSTGRES_USER
 ENV POSTGRES_PASSWORD=$POSTGRES_PASSWORD
 ENV POSTGRES_DB=$POSTGRES_DB
-ENV POSTGRES_HOST_AUTH_METHOD="trust"
 
 ### Copy the content of the build's context to the working directory
 ### Example in shell: cp application/backend/worker/posts.sql /data/
