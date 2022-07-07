@@ -316,8 +316,6 @@ deploy review on ecs:
     ### Install Docker
     - apk add --no-cache docker openrc
   script:
-    ### Connect to AWS ECR registry
-    - aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
     ### Configure Terraform
     - cd ./deploy/ecs
     - |
@@ -498,8 +496,6 @@ deploy prod on eks:
   script:
     ### Install EKS kubeconfig file locally
     - aws eks update-kubeconfig --name product-hunting-eks-cluster
-    ### Connect to AWS ECR registry
-    - aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
     ### Configure Terraform
     - cd ./deploy/eks
     - |
