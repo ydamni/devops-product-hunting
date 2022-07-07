@@ -261,13 +261,13 @@ create docker images for review:
     ### Connect to AWS ECR registry
     - aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
     ### Create image tags
-    - docker tag product-hunting-postgres:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/product-hunting-postgres:review
-    - docker tag product-hunting-api:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/product-hunting-api:review
-    - docker tag product-hunting-client:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/product-hunting-client:review
+    - docker tag product-hunting-postgres:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/product-hunting-postgres:review-$CI_COMMIT_SHORT_SHA
+    - docker tag product-hunting-api:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/product-hunting-api:review-$CI_COMMIT_SHORT_SHA
+    - docker tag product-hunting-client:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/product-hunting-client:review-$CI_COMMIT_SHORT_SHA
     ### Push images to ECR
-    - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/product-hunting-postgres:review
-    - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/product-hunting-api:review
-    - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/product-hunting-client:review
+    - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/product-hunting-postgres:review-$CI_COMMIT_SHORT_SHA
+    - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/product-hunting-api:review-$CI_COMMIT_SHORT_SHA
+    - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/product-hunting-client:review-$CI_COMMIT_SHORT_SHA
 
 deploy review on ecs:
   stage: deploy
@@ -295,6 +295,7 @@ deploy review on ecs:
       ecr_registry = "$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com"
       aws_account_id = "$AWS_ACCOUNT_ID"
       my_ip = "$MY_IP"
+      ci_commit_short_sha = "$CI_COMMIT_SHORT_SHA"
       EOF
     - terraform init
     - terraform apply -var-file=main.tfvars -auto-approve
@@ -318,7 +319,7 @@ add data to review postgres db:
     - dpkg -i session-manager-plugin.deb
   script:
     - |
-      TASK_ARN=$(aws ecs list-tasks --output text --cluster product-hunting-ecs-cluster --query 'taskArns[]')
+      TASK_ARN=$(aws ecs list-tasks --output text --cluster product-hunting-ecs-cluster --query 'taskArns[-1]')
       aws ecs execute-command --cluster product-hunting-ecs-cluster \
         --task $TASK_ARN \
         --container product-hunting-postgres \
@@ -425,22 +426,20 @@ create docker images for prod:
     - aws configure set region $AWS_REGION
   script:
     ### Add tag to postgres image
-    - aws ecr batch-delete-image --repository-name product-hunting-postgres --image-ids imageTag="prod"
-    - MANIFEST=$(aws ecr batch-get-image --repository-name product-hunting-postgres --image-ids imageTag=review --output json | jq --raw-output --join-output '.images[0].imageManifest')
-    - aws ecr put-image --repository-name product-hunting-postgres --image-tag prod --image-manifest "$MANIFEST"
+    - MANIFEST=$(aws ecr batch-get-image --repository-name product-hunting-postgres --image-ids imageTag=review-$CI_COMMIT_SHORT_SHA --output json | jq --raw-output --join-output '.images[0].imageManifest')
+    - aws ecr put-image --repository-name product-hunting-postgres --image-tag prod-$CI_COMMIT_SHORT_SHA --image-manifest "$MANIFEST"
     ### Add tag to api image
-    - aws ecr batch-delete-image --repository-name product-hunting-api --image-ids imageTag="prod"
-    - MANIFEST=$(aws ecr batch-get-image --repository-name product-hunting-api --image-ids imageTag=review --output json | jq --raw-output --join-output '.images[0].imageManifest')
-    - aws ecr put-image --repository-name product-hunting-api --image-tag prod --image-manifest "$MANIFEST"
+    - MANIFEST=$(aws ecr batch-get-image --repository-name product-hunting-api --image-ids imageTag=review-$CI_COMMIT_SHORT_SHA --output json | jq --raw-output --join-output '.images[0].imageManifest')
+    - aws ecr put-image --repository-name product-hunting-api --image-tag prod-$CI_COMMIT_SHORT_SHA --image-manifest "$MANIFEST"
     ### Recreate client image
     - cd ./release
     - docker-compose build --no-cache client
     ### Connect to AWS ECR registry
     - aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
     ### Create image tag
-    - docker tag product-hunting-client:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/product-hunting-client:prod
+    - docker tag product-hunting-client:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/product-hunting-client:prod-$CI_COMMIT_SHORT_SHA
     ### Push image to ECR
-    - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/product-hunting-client:prod
+    - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/product-hunting-client:prod-$CI_COMMIT_SHORT_SHA
 
 deploy prod on eks:
   stage: prod deploy
@@ -473,6 +472,7 @@ deploy prod on eks:
     - |
       cat <<EOF | tee ./main.tfvars
       ecr_registry = "$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com"
+      ci_commit_short_sha = "$CI_COMMIT_SHORT_SHA"
       EOF
     - terraform init
     - terraform refresh -var-file=main.tfvars

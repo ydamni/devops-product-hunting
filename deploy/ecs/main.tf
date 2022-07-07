@@ -274,14 +274,14 @@ resource "aws_ecs_task_definition" "product-hunting-ecs-td" {
   container_definitions = jsonencode([
     {
       name      = "product-hunting-postgres"
-      image     = "${var.ecr_registry}/product-hunting-postgres:review"
+      image     = "${var.ecr_registry}/product-hunting-postgres:review-${var.ci_commit_short_sha}"
       cpu       = 512
       memory    = 1536
       essential = true
     },
     {
       name      = "product-hunting-api"
-      image     = "${var.ecr_registry}/product-hunting-api:review"
+      image     = "${var.ecr_registry}/product-hunting-api:review-${var.ci_commit_short_sha}"
       cpu       = 256
       memory    = 1024
       essential = true
@@ -300,7 +300,7 @@ resource "aws_ecs_task_definition" "product-hunting-ecs-td" {
     },
     {
       name      = "product-hunting-client"
-      image     = "${var.ecr_registry}/product-hunting-client:review"
+      image     = "${var.ecr_registry}/product-hunting-client:review-${var.ci_commit_short_sha}"
       cpu       = 256
       memory    = 512
       essential = true
