@@ -8,6 +8,16 @@ variables:
   ### Environments
   REVIEW_URL: https://review.devops-product-hunting.com
   PROD_URL: https://devops-product-hunting.com
+### Project CI/CD variables
+# AWS_ACCESS_KEY_ID             - Protected
+# AWS_ACCOUNT_ID                - Protected
+# AWS_SECRET_ACCESS_KEY         - Protected/Masked
+# MY_IP                         - Protected/Masked
+# POSTGRES_DB                   - Protected
+# POSTGRES_PASSWORD             - Protected/Masked
+# POSTGRES_USER                 - Protected
+# PRODUCT_HUNT_API_ACCESS_TOKEN - Protected/Masked
+# SQLIZER_API_KEY               - Protected/Masked
 
 stages:
   - prerequisites
