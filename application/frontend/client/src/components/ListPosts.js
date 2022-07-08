@@ -3,6 +3,16 @@ import ShowDetails from "./ShowDetails";
 
 const API_URL = process.env.REACT_APP_API_URL;
 
+//Redirect to URL onclick
+const getUrl = (post) => {
+    try {
+        window.open(post.url, '_blank');
+        console.log(post.url)
+    } catch (err) {
+        console.error(err.message);
+    }
+}
+
 const ListPosts = () => {
     const [posts, setPosts] = useState([]);
 
@@ -46,7 +56,7 @@ const ListPosts = () => {
                             <td>{post.votesCount}</td>
                             <td>{post.reviewsRating}/5</td>
                             <td>{post.tagline}</td>
-                            <td><ShowDetails post = {post} /></td>
+                            <td><ShowDetails post={post} /></td>
                             <td><button class="btn btn-primary" onClick={() => getUrl(post)}>Go to Product page</button></td>
                         </tr>
                     ))}
@@ -56,15 +66,5 @@ const ListPosts = () => {
         
     );
 };
-
-//Redirect to URL onclick
-const getUrl = (post) => {
-    try {
-        window.open(post.url, '_blank');
-        console.log(post.url)
-    } catch (err) {
-        console.error(err.message);
-    }
-}
 
 export default ListPosts;
