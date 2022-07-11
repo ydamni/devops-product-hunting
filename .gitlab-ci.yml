@@ -171,7 +171,7 @@ create main infra:
     - terraform init
     - terraform apply -auto-approve
 
-store for review:
+store top posts:
   stage: build
   image: alpine:3.16
   only:
@@ -199,7 +199,7 @@ store for review:
     - sed -i '2s/^/    "id" SERIAL PRIMARY KEY,\n/' posts.sql
     - sed -i "s/('/(DEFAULT,'/g" posts.sql
 
-build for review:
+build project:
   stage: build
   image: alpine:3.16
   only:
@@ -225,7 +225,7 @@ build for review:
     - export REACT_APP_API_URL="$REVIEW_API_URL"
     - npm run build
 
-create docker images for review:
+create review docker images:
   stage: release
   image: docker:20.10
   services:
@@ -361,7 +361,7 @@ create prod infra:
     - terraform init
     - terraform apply -auto-approve
 
-build client for prod:
+rebuild project for prod:
   stage: prod build
   needs: ["push to prod"]
   when: on_success
@@ -381,9 +381,9 @@ build client for prod:
     - export REACT_APP_API_URL="$PROD_API_URL"
     - npm run build
 
-create docker images for prod:
+create prod docker images:
   stage: prod release
-  needs: ["build client for prod"]
+  needs: ["rebuild project for prod"]
   when: on_success
   image: docker:20.10
   services:
@@ -418,7 +418,7 @@ create docker images for prod:
 
 deploy prod on eks:
   stage: prod deploy
-  needs: ["create prod infra", "create docker images for prod"]
+  needs: ["create prod infra", "create prod docker images"]
   when: on_success
   image:
     name: hashicorp/terraform:1.2.2
