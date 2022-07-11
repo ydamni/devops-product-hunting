@@ -71,7 +71,7 @@ resource "kubernetes_deployment" "product-hunting-kube-deployment" {
   }
 
   spec {
-    replicas = 3
+    replicas = 2
 
     selector {
       match_labels = {
@@ -93,7 +93,7 @@ resource "kubernetes_deployment" "product-hunting-kube-deployment" {
             preferred_during_scheduling_ignored_during_execution {
               weight = 1
               pod_affinity_term {
-                topology_key = "failure-domain.beta.kubernetes.io/zone"
+                topology_key = "topology.kubernetes.io/zone"
                 label_selector {
                   match_expressions {
                     key      = "app"
