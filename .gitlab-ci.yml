@@ -452,3 +452,5 @@ deploy prod on eks:
     - terraform init
     - terraform refresh -var-file=main.tfvars
     - terraform apply -var-file=main.tfvars -auto-approve
+    ### Install Kubernetes Metrics Server
+    - kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
