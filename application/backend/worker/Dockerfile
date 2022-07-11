@@ -3,7 +3,7 @@
 FROM postgres:alpine3.16
 
 ### Define working directory inside image
-WORKDIR /data
+WORKDIR /docker-entrypoint-initdb.d
 
 ### Add arguments
 ARG POSTGRES_USER
@@ -16,11 +16,8 @@ ENV POSTGRES_PASSWORD=$POSTGRES_PASSWORD
 ENV POSTGRES_DB=$POSTGRES_DB
 
 ### Copy the content of the build's context to the working directory
-### Example in shell: cp application/backend/worker/posts.sql /data/
+### Example in shell: cp application/backend/worker/posts.sql /docker-entrypoint-initdb.d/
 COPY posts.sql .
-
-### Install postgresql-client
-RUN apk add --no-cache postgresql-client
 
 ### ### Run postgres database
 ### Expose database port 5432

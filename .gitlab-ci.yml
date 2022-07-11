@@ -180,7 +180,7 @@ store for review:
     -
       key: REVIEW-POSTGRES
       paths:
-        - $CI_PROJECT_DIR/application/backend/worker/
+        - $CI_PROJECT_DIR/application/backend/worker/posts.sql
   before_script:
     - apk add --no-cache python3 py3-pip
     - pip3 install sqlizer-io-client
@@ -236,7 +236,7 @@ create docker images for review:
     -
       key: REVIEW-POSTGRES
       paths:
-        - $CI_PROJECT_DIR/application/backend/worker/
+        - $CI_PROJECT_DIR/application/backend/worker/posts.sql
     -
       key: REVIEW-NODE-MODULES
       paths:
@@ -300,35 +300,9 @@ deploy review on ecs:
     - terraform init
     - terraform apply -var-file=main.tfvars -auto-approve
 
-add data to review postgres db:
-  stage: deploy
-  needs: ["deploy review on ecs"]
-  when: on_success
-  image: ubuntu:20.04
-  only:
-    - main
-  before_script:
-    - apt update -y
-    - apt install -y python3 python3-pip
-    ### Install awscli
-    - pip3 install awscli
-    - aws configure set region $AWS_REGION
-    ### Install Session Manager plugin for ecs exec
-    - apt install -y curl dpkg
-    - curl "https://s3.amazonaws.com/session-manager-downloads/plugin/latest/ubuntu_64bit/session-manager-plugin.deb" -o "session-manager-plugin.deb"
-    - dpkg -i session-manager-plugin.deb
-  script:
-    - |
-      TASK_ARN=$(aws ecs list-tasks --output text --cluster product-hunting-ecs-cluster --query 'taskArns[-1]')
-      aws ecs execute-command --cluster product-hunting-ecs-cluster \
-        --task $TASK_ARN \
-        --container product-hunting-postgres \
-        --interactive \
-        --command "sh -c 'PGPASSWORD=$POSTGRES_PASSWORD psql -h localhost -U postgres -d product_hunting -f posts.sql'"
-
 destroy review:
   stage: deploy
-  needs: ["add data to review postgres db"]
+  needs: ["deploy review on ecs"]
   when: manual
   image:
     name: hashicorp/terraform:1.2.2
@@ -360,7 +334,7 @@ destroy review:
 
 push to prod:
   stage: prod prerequisites
-  needs: ["add data to review postgres db"]
+  needs: ["deploy review on ecs"]
   when: manual
   variables:
     GIT_STRATEGY: none
@@ -478,14 +452,3 @@ deploy prod on eks:
     - terraform init
     - terraform refresh -var-file=main.tfvars
     - terraform apply -var-file=main.tfvars -auto-approve
-    ### Get pods from most recent replicaset
-    - REPLICASET=$(kubectl get replicaset.apps --sort-by=.metadata.creationTimestamp --no-headers -o custom-columns=":metadata.name" | grep product-hunting | tail -1)
-    - LIST_PODS=$(kubectl get pods --no-headers -o custom-columns=":metadata.name" | grep $REPLICASET)
-    ### Add data to DB:
-    - |
-      for pod in $LIST_PODS; do
-          IS_TABLE_CREATED=$(kubectl exec $pod --container product-hunting-postgres -- sh -c 'PGPASSWORD=$POSTGRES_PASSWORD psql -h localhost -U $POSTGRES_USER -d $POSTGRES_DB -c "\dt" | { grep posts || true; }')
-          if [ -z "$IS_TABLE_CREATED" ]; then
-              kubectl exec $pod --container product-hunting-postgres -- sh -c 'PGPASSWORD=$POSTGRES_PASSWORD psql -h localhost -U postgres -d product_hunting -f posts.sql'
-          fi
-      done
