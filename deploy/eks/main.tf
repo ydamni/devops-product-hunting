@@ -87,6 +87,25 @@ resource "kubernetes_deployment" "product-hunting-kube-deployment" {
       }
 
       spec {
+        ### Start each pod on a different node
+        affinity {
+          pod_anti_affinity {
+            preferred_during_scheduling_ignored_during_execution {
+              weight = 1
+              pod_affinity_term {
+                topology_key = "failure-domain.beta.kubernetes.io/zone"
+                label_selector {
+                  match_expressions {
+                    key      = "app"
+                    operator = "In"
+                    values   = ["product-hunting"]
+                  }
+                }
+              }
+            }
+          }
+        }
+
         container {
           name  = "product-hunting-postgres"
           image = "${var.ecr_registry}/product-hunting-postgres:prod-${var.ci_commit_short_sha}"
