@@ -96,6 +96,7 @@ resource "aws_eks_node_group" "product-hunting-eks-node-group" {
   node_group_name = "product-hunting-eks-node-group"
   node_role_arn   = aws_iam_role.product-hunting-role-eks-node-group.arn
   subnet_ids      = [data.aws_subnets.product-hunting-aws-subnets.ids[0], data.aws_subnets.product-hunting-aws-subnets.ids[1]]
+  ami_type        = "AL2_ARM_64"
   instance_types  = ["t4g.small"]
 
   scaling_config {
