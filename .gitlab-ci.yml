@@ -37,6 +37,7 @@ stages:
   - prod release
   - prod deploy
   - prod operate
+  - prod monitor
 
 ### ###
 ### Dev - Merge request
@@ -525,3 +526,49 @@ apply vertical pod autoscaler:
     - kubectl get pods -n kube-system | grep vpa
     ### Create VPA object
     - kubectl apply -f product-hunting-vpa.yaml
+
+monitor vertical pod autoscaler:
+  stage: prod monitor
+  needs: ["apply vertical pod autoscaler"]
+  when: manual
+  image:
+    name: golang:1.18-alpine3.16
+    entrypoint: [""]
+  only:
+    - main
+  before_script:
+    - apk add --no-cache curl python3 py3-pip git bash
+    ### Install awscli
+    - pip3 install awscli
+    - aws configure set region $AWS_REGION
+    ### Install Docker
+    - apk add --no-cache docker openrc
+    ### Install kubectl
+    - curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl
+    - chmod +x ./kubectl
+    - mv ./kubectl /usr/local/bin/kubectl
+    ### Packages for Selenium
+    - apk add --no-cache chromium-chromedriver gcc python3-dev libffi-dev musl-dev
+    - pip3 install selenium
+  script:
+    ### Install EKS kubeconfig file locally
+    - aws eks update-kubeconfig --name product-hunting-eks-cluster
+    ### Install Goldilocks
+    - cd ./monitor/vpa
+    - git clone https://github.com/FairwindsOps/goldilocks.git
+    - cd goldilocks
+    - kubectl create namespace goldilocks --dry-run=client -o yaml | kubectl apply -f -
+    - kubectl -n goldilocks apply -f hack/manifests/controller
+    - kubectl -n goldilocks apply -f hack/manifests/dashboard
+    ### Enable 'default' namespace to Goldilocks Dashboard
+    - kubectl label --overwrite ns default goldilocks.fairwinds.com/enabled=true
+    ### Forward Dashboard on localhost port 8080
+    - kubectl -n goldilocks port-forward svc/goldilocks-dashboard 8080:80 &
+    ### Wait for Goldilocks to get data from VPA
+    - sleep 60
+    ### Generate report with Selenium
+    - cd ..
+    - python3 extractWebPage.py
+  artifacts:
+    paths:
+      - monitor/vpa/report.html
