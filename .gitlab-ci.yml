@@ -8,10 +8,14 @@ variables:
   ### Environments
   REVIEW_URL: https://review.devops-product-hunting.com
   PROD_URL: https://devops-product-hunting.com
+  ### FinOps
+  TF_ROOT: infrastructure/prod
 ### Project CI/CD variables
 # AWS_ACCESS_KEY_ID             - Protected
 # AWS_ACCOUNT_ID                - Protected
 # AWS_SECRET_ACCESS_KEY         - Protected/Masked
+# GITLAB_TOKEN                  - Masked
+# INFRACOST_API_KEY             - Masked
 # MY_IP                         - Protected/Masked
 # POSTGRES_DB                   - Protected
 # POSTGRES_PASSWORD             - Protected/Masked
@@ -21,6 +25,7 @@ variables:
 
 stages:
   - prerequisites
+  - finops
   - infrastructure
   - build
   - test
@@ -35,6 +40,39 @@ stages:
 ### ###
 ### Dev - Merge request
 ### ###
+
+infracost on prod infra:
+  stage: finops
+  image:
+    name: infracost/infracost:ci-0.10
+    entrypoint: [""]
+  only:
+    - merge_requests
+  script:
+    # Clone the base branch of the pull request into a temp directory.
+    - git clone $CI_REPOSITORY_URL --branch=$CI_MERGE_REQUEST_TARGET_BRANCH_NAME --single-branch /tmp/base
+    ### Generate an Infracost cost snapshot from the comparison branch, so that Infracost can compare the cost difference.
+    - |
+      infracost breakdown \
+      --path=/tmp/base/${TF_ROOT} \
+      --format=json \
+      --out-file=infracost-base.json
+    ### Generate an Infracost diff and save it to a JSON file.
+    - |
+      infracost diff \
+      --path=${TF_ROOT} \
+      --compare-to=infracost-base.json \
+      --format=json \
+      --out-file=infracost.json
+    ### Post a comment to the PR using the 'update' behavior.
+    - |
+      infracost comment gitlab \
+      --path=infracost.json \
+      --repo=$CI_PROJECT_PATH \
+      --merge-request=$CI_MERGE_REQUEST_IID \
+      --gitlab-server-url=$CI_SERVER_URL \
+      --gitlab-token=$GITLAB_TOKEN \
+      --behavior=update
 
 build client-server app:
   stage: build
