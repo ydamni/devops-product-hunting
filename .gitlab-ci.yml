@@ -562,10 +562,10 @@ monitor vertical pod autoscaler:
     - kubectl -n goldilocks apply -f hack/manifests/dashboard
     ### Enable 'default' namespace to Goldilocks Dashboard
     - kubectl label --overwrite ns default goldilocks.fairwinds.com/enabled=true
-    ### Forward Dashboard on localhost port 8080
-    - kubectl -n goldilocks port-forward svc/goldilocks-dashboard 8080:80 &
     ### Wait for Goldilocks to get data from VPA
     - sleep 60
+    ### Forward Dashboard on localhost port 8080
+    - kubectl -n goldilocks port-forward svc/goldilocks-dashboard 8080:80 &
     ### Generate report with Selenium
     - cd ..
     - python3 extractWebPage.py
