@@ -469,7 +469,7 @@ deploy prod on eks:
     name: production
     url: $PROD_URL
   before_script:
-    - apk add --no-cache curl python3 py3-pip
+    - apk add --no-cache curl python3 py3-pip openssl
     ### Install awscli
     - pip3 install awscli
     - aws configure set region $AWS_REGION
@@ -505,7 +505,7 @@ apply vertical pod autoscaler:
   only:
     - main
   before_script:
-    - apk add --no-cache curl python3 py3-pip git bash
+    - apk add --no-cache curl python3 py3-pip git bash openssl
     ### Install awscli
     - pip3 install awscli
     - aws configure set region $AWS_REGION
