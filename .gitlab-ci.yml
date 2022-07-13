@@ -527,6 +527,34 @@ apply vertical pod autoscaler:
     ### Create VPA object
     - kubectl apply -f product-hunting-vpa.yaml
 
+apply horizontal pod autoscaler:
+  stage: prod operate
+  needs: ["deploy prod on eks"]
+  when: on_success
+  image:
+    name: hashicorp/terraform:1.2.2
+    entrypoint: [""]
+  only:
+    - main
+  before_script:
+    - apk add --no-cache curl python3 py3-pip
+    ### Install awscli
+    - pip3 install awscli
+    - aws configure set region $AWS_REGION
+    ### Install Docker
+    - apk add --no-cache docker openrc
+    ### Install kubectl
+    - curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl
+    - chmod +x ./kubectl
+    - mv ./kubectl /usr/local/bin/kubectl
+  script:
+    ### Install EKS kubeconfig file locally
+    - aws eks update-kubeconfig --name product-hunting-eks-cluster
+    ### Configure Terraform
+    - cd ./operate/hpa
+    - terraform init
+    - terraform apply -auto-approve
+
 monitor vertical pod autoscaler:
   stage: prod monitor
   needs: ["apply vertical pod autoscaler"]
