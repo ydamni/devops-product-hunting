@@ -113,6 +113,17 @@ resource "kubernetes_deployment" "product-hunting-kube-deployment" {
           port {
             container_port = 5432
           }
+
+          resources {
+            limits = {
+              cpu    = "1024m"
+              memory = "1024Mi"
+            }
+            requests = {
+              cpu    = "256m"
+              memory = "128Mi"
+            }
+          }
         }
 
         container {
@@ -127,6 +138,17 @@ resource "kubernetes_deployment" "product-hunting-kube-deployment" {
             name  = "POSTGRES_HOST"
             value = "localhost"
           }
+
+          resources {
+            limits = {
+              cpu    = "512m"
+              memory = "512Mi"
+            }
+            requests = {
+              cpu    = "256m"
+              memory = "128Mi"
+            }
+          }
         }
 
         container {
@@ -139,6 +161,17 @@ resource "kubernetes_deployment" "product-hunting-kube-deployment" {
 
           port {
             container_port = 443
+          }
+
+          resources {
+            limits = {
+              cpu    = "512m"
+              memory = "512Mi"
+            }
+            requests = {
+              cpu    = "256m"
+              memory = "128Mi"
+            }
           }
         }
       }
