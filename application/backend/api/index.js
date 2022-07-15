@@ -7,6 +7,22 @@ const pool = require("./db");
 app.use(cors())
 app.use(express.json()); //req.body
 
+//GET API health
+app.get("/health", async(req, res) => {
+    try {
+        const start = process.hrtime(); //Start request time
+        const healthcheck = {
+            message: 'OK',
+            uptime: process.uptime(),
+            timestamp: Date.now(),
+            responsetime: process.hrtime(start) // Calculate response time based on request time
+        };
+        res.json(healthcheck)
+    } catch (err) {
+        console.error(err.message);
+    }
+})
+
 //GET all posts
 app.get("/posts", async(req, res) => {
     try {

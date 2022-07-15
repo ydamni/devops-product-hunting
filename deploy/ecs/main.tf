@@ -116,7 +116,7 @@ resource "aws_lb_target_group" "product-hunting-lb-target-group-http" {
     healthy_threshold   = "2"
     unhealthy_threshold = "3"
     timeout             = "10"
-    interval            = "30"
+    interval            = "15"
     protocol            = "HTTP"
     matcher             = "200,301,302" ### 301 & 302 => Redirect
     path                = "/"
@@ -134,7 +134,7 @@ resource "aws_lb_target_group" "product-hunting-lb-target-group-https" {
     healthy_threshold   = "2"
     unhealthy_threshold = "3"
     timeout             = "10"
-    interval            = "30"
+    interval            = "15"
     protocol            = "HTTP"
     matcher             = "200"
     path                = "/"
@@ -151,11 +151,11 @@ resource "aws_lb_target_group" "product-hunting-lb-target-group-api" {
   health_check {
     healthy_threshold   = "2"
     unhealthy_threshold = "3"
-    timeout             = "30"
-    interval            = "60"
+    timeout             = "10"
+    interval            = "15"
     protocol            = "HTTP"
     matcher             = "200"
-    path                = "/posts/1"
+    path                = "/health"
   }
 }
 
