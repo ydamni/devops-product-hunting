@@ -157,6 +157,18 @@ resource "kubernetes_deployment" "product-hunting-kube-deployment" {
               memory = "128Mi"
             }
           }
+
+          readiness_probe {
+            http_get {
+              scheme = "HTTP"
+              path   = "/health"
+              port   = 5000
+            }
+            initial_delay_seconds = 10
+            period_seconds        = 15
+            success_threshold     = 2
+            failure_threshold     = 3
+          }
         }
 
         container {
@@ -180,6 +192,18 @@ resource "kubernetes_deployment" "product-hunting-kube-deployment" {
               cpu    = "256m"
               memory = "128Mi"
             }
+          }
+
+          readiness_probe {
+            http_get {
+              scheme = "HTTP"
+              path   = "/"
+              port   = 443
+            }
+            initial_delay_seconds = 10
+            period_seconds        = 15
+            success_threshold     = 2
+            failure_threshold     = 3
           }
         }
       }
