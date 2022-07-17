@@ -51,6 +51,8 @@ resource "aws_eks_cluster" "product-hunting-eks-cluster" {
     subnet_ids = [data.aws_subnets.product-hunting-aws-subnets.ids[0], data.aws_subnets.product-hunting-aws-subnets.ids[1]]
   }
 
+  version = "1.22"
+
   depends_on = [
     aws_iam_role_policy_attachment.product-hunting-AmazonEKSClusterPolicy,
     aws_iam_role_policy_attachment.product-hunting-AmazonEKSVPCResourceController,
@@ -100,8 +102,8 @@ resource "aws_eks_node_group" "product-hunting-eks-node-group" {
   instance_types  = ["t3.small"]
 
   scaling_config {
-    desired_size = 4
-    max_size     = 6
+    desired_size = 6
+    max_size     = 10
     min_size     = 2
   }
 

@@ -624,3 +624,95 @@ monitor vertical pod autoscaler:
   artifacts:
     paths:
       - monitor/vpa/report.html
+
+install prometheus:
+  stage: prod monitor
+  needs: ["deploy prod on eks"]
+  when: on_success
+  image: alpine:3.16
+  only:
+    - main
+  cache:
+    -
+      key: PROD-PROMETHEUS
+      paths:
+        - $CI_PROJECT_DIR/monitor/prometheus/manifests/
+  before_script:
+    - apk add --no-cache curl python3 py3-pip git
+    ### Install awscli
+    - pip3 install awscli
+    - aws configure set region $AWS_REGION
+    ### Install Docker
+    - apk add --no-cache docker openrc
+    ### Install kubectl
+    - curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl
+    - chmod +x ./kubectl
+    - mv ./kubectl /usr/local/bin/kubectl
+  script:
+    ### Install EKS kubeconfig file locally
+    - aws eks update-kubeconfig --name product-hunting-eks-cluster
+    ### Install kube-prometheus release-0.10 compatible with Kubernetes 1.22
+    - cd ./monitor/prometheus
+    - git clone --depth 1 https://github.com/prometheus-operator/kube-prometheus.git -b release-0.10 /tmp/prometheus
+    - cp -R /tmp/prometheus/manifests .
+    - kubectl apply --server-side -f manifests/setup
+
+monitor kube with prometheus:
+  stage: prod monitor
+  needs: ["install prometheus"]
+  when: manual
+  image: alpine:3.16
+  only:
+    - main
+  cache:
+    -
+      key: PROD-PROMETHEUS
+      paths:
+        - $CI_PROJECT_DIR/monitor/prometheus/manifests/
+  before_script:
+    - apk add --no-cache curl python3 py3-pip
+    ### Install awscli
+    - pip3 install awscli
+    - aws configure set region $AWS_REGION
+    ### Install Docker
+    - apk add --no-cache docker openrc
+    ### Install kubectl
+    - curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl
+    - chmod +x ./kubectl
+    - mv ./kubectl /usr/local/bin/kubectl
+  script:
+    ### Install EKS kubeconfig file locally
+    - aws eks update-kubeconfig --name product-hunting-eks-cluster
+    ### Deploy prometheus pods
+    - cd ./monitor/prometheus
+    - kubectl apply -f manifests/
+
+destroy prometheus pods:
+  stage: prod monitor
+  needs: ["monitor kube with prometheus"]
+  when: manual
+  image: alpine:3.16
+  only:
+    - main
+  cache:
+    -
+      key: PROD-PROMETHEUS
+      paths:
+        - $CI_PROJECT_DIR/monitor/prometheus/manifests/
+  before_script:
+    - apk add --no-cache curl python3 py3-pip
+    ### Install awscli
+    - pip3 install awscli
+    - aws configure set region $AWS_REGION
+    ### Install Docker
+    - apk add --no-cache docker openrc
+    ### Install kubectl
+    - curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl
+    - chmod +x ./kubectl
+    - mv ./kubectl /usr/local/bin/kubectl
+  script:
+    ### Install EKS kubeconfig file locally
+    - aws eks update-kubeconfig --name product-hunting-eks-cluster
+    ### Destroy prometheus pods
+    - cd ./monitor/prometheus
+    - kubectl delete --ignore-not-found=true -f manifests/
