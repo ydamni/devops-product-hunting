@@ -599,9 +599,6 @@ monitor vertical pod autoscaler:
     - curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl
     - chmod +x ./kubectl
     - mv ./kubectl /usr/local/bin/kubectl
-    ### Packages for Selenium
-    - apk add --no-cache chromium-chromedriver gcc python3-dev libffi-dev musl-dev
-    - pip3 install selenium
   script:
     ### Install EKS kubeconfig file locally
     - aws eks update-kubeconfig --name product-hunting-eks-cluster
@@ -614,16 +611,8 @@ monitor vertical pod autoscaler:
     - kubectl -n goldilocks apply -f hack/manifests/dashboard
     ### Enable 'default' namespace to Goldilocks Dashboard
     - kubectl label --overwrite ns default goldilocks.fairwinds.com/enabled=true
-    ### Wait for Goldilocks to get data from VPA
-    - sleep 60
-    ### Forward Dashboard on localhost port 8080
-    - kubectl -n goldilocks port-forward svc/goldilocks-dashboard 8080:80 &
-    ### Generate report with Selenium
-    - cd ..
-    - python3 extractWebPage.py
-  artifacts:
-    paths:
-      - monitor/vpa/report.html
+    ### ### Goldilocks is now accessible using port-forwarding
+    ### kubectl -n goldilocks port-forward svc/goldilocks-dashboard 8080:80
 
 install prometheus:
   stage: prod monitor
@@ -683,11 +672,15 @@ monitor kube with prometheus:
   script:
     ### Install EKS kubeconfig file locally
     - aws eks update-kubeconfig --name product-hunting-eks-cluster
-    ### Deploy prometheus pods
+    ### Deploy kube-prometheus
     - cd ./monitor/prometheus
     - kubectl apply -f manifests/
+    ### ### Prometheus, Grafana and Alert Manager are now accessible using port-forwarding
+    ### kubectl -n monitoring port-forward svc/prometheus-operated 9090
+    ### kubectl -n monitoring port-forward svc/grafana 3000
+    ### kubectl -n monitoring port-forward svc/alertmanager-main 9093
 
-destroy prometheus pods:
+destroy prometheus:
   stage: prod monitor
   needs: ["monitor kube with prometheus"]
   when: manual
@@ -713,6 +706,6 @@ destroy prometheus pods:
   script:
     ### Install EKS kubeconfig file locally
     - aws eks update-kubeconfig --name product-hunting-eks-cluster
-    ### Destroy prometheus pods
+    ### Destroy kube-prometheus
     - cd ./monitor/prometheus
     - kubectl delete --ignore-not-found=true -f manifests/
