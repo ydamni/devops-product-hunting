@@ -29,4 +29,4 @@ RUN apk add --no-cache nodejs
 EXPOSE 5000
 
 ### Launch server
-CMD node index index.js
+CMD node --require './tracing.js' index.js

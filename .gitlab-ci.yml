@@ -90,10 +90,13 @@ build client-server app:
   before_script:
     - apk add --no-cache nodejs npm
   script:
-    ### Server-side
+    ### ### Server-side
     - cd $CI_PROJECT_DIR/application/backend/api
+    ### Base dependencies
     - npm install express pg cors
-    ### Client-side
+    ### OpenTelemetry dependencies
+    - npm install --save @opentelemetry/{api,sdk-node,auto-instrumentations-node,exporter-jaeger}
+    ### ### Client-side
     - cd $CI_PROJECT_DIR/application/frontend/client
     - npm install
 
@@ -128,7 +131,7 @@ smoke test:
     - cd $CI_PROJECT_DIR/application/backend/api
     - export POSTGRES_HOST="postgres"
     - export POSTGRES_PORT=5432
-    - node index index.js &
+    - node --require './tracing.js' index.js &
     ### Launch client Web application
     - cd $CI_PROJECT_DIR/application/frontend/client
     - export REACT_APP_API_URL="$LOCAL_API_URL"
@@ -256,10 +259,13 @@ build project:
   before_script:
     - apk add --no-cache npm
   script:
-    ### Server-side
+    ### ### Server-side
     - cd $CI_PROJECT_DIR/application/backend/api
+    ### Base dependencies
     - npm install express pg cors
-    ### Client-side
+    ### OpenTelemetry dependencies
+    - npm install --save @opentelemetry/{api,sdk-node,auto-instrumentations-node,exporter-jaeger}
+    ### ### Client-side
     - cd $CI_PROJECT_DIR/application/frontend/client
     - npm install
     - export REACT_APP_API_URL="$REVIEW_API_URL"
