@@ -95,7 +95,7 @@ build client-server app:
     ### Base dependencies
     - npm install express pg cors
     ### OpenTelemetry dependencies
-    - npm install --save @opentelemetry/{api,sdk-node,auto-instrumentations-node,exporter-jaeger}
+    - npm install --save @opentelemetry/api @opentelemetry/sdk-node @opentelemetry/auto-instrumentations-node @opentelemetry/exporter-jaeger
     ### ### Client-side
     - cd $CI_PROJECT_DIR/application/frontend/client
     - npm install
@@ -264,7 +264,7 @@ build project:
     ### Base dependencies
     - npm install express pg cors
     ### OpenTelemetry dependencies
-    - npm install --save @opentelemetry/{api,sdk-node,auto-instrumentations-node,exporter-jaeger}
+    - npm install --save @opentelemetry/api @opentelemetry/sdk-node @opentelemetry/auto-instrumentations-node @opentelemetry/exporter-jaeger
     ### ### Client-side
     - cd $CI_PROJECT_DIR/application/frontend/client
     - npm install
