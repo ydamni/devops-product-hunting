@@ -587,41 +587,6 @@ rollback to previous revision:
     ### Perform a rollback to the previous revision
     - kubectl rollout undo deployment product-hunting
 
-monitor vertical pod autoscaler:
-  stage: prod monitor
-  needs: ["apply vertical pod autoscaler"]
-  when: manual
-  image:
-    name: golang:1.18-alpine3.16
-    entrypoint: [""]
-  only:
-    - main
-  before_script:
-    - apk add --no-cache curl python3 py3-pip git bash
-    ### Install awscli
-    - pip3 install awscli
-    - aws configure set region $AWS_REGION
-    ### Install Docker
-    - apk add --no-cache docker openrc
-    ### Install kubectl
-    - curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl
-    - chmod +x ./kubectl
-    - mv ./kubectl /usr/local/bin/kubectl
-  script:
-    ### Install EKS kubeconfig file locally
-    - aws eks update-kubeconfig --name product-hunting-eks-cluster
-    ### Install Goldilocks
-    - cd ./monitor/vpa
-    - git clone https://github.com/FairwindsOps/goldilocks.git
-    - cd goldilocks
-    - kubectl create namespace goldilocks --dry-run=client -o yaml | kubectl apply -f -
-    - kubectl -n goldilocks apply -f hack/manifests/controller
-    - kubectl -n goldilocks apply -f hack/manifests/dashboard
-    ### Enable 'default' namespace to Goldilocks Dashboard
-    - kubectl label --overwrite ns default goldilocks.fairwinds.com/enabled=true
-    ### ### Goldilocks is now accessible using port-forwarding
-    ### kubectl -n goldilocks port-forward svc/goldilocks-dashboard 8080:80
-
 monitoring prerequisites:
   stage: prod monitor
   needs: ["deploy prod on eks"]
@@ -657,6 +622,41 @@ monitoring prerequisites:
     ### ### Needed by 'app tracing with jaeger' job
     ### Install cert-manager
     - kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.6.3/cert-manager.yaml
+
+monitor vertical pod autoscaler using goldilocks:
+  stage: prod monitor
+  needs: ["apply vertical pod autoscaler"]
+  when: manual
+  image:
+    name: golang:1.18-alpine3.16
+    entrypoint: [""]
+  only:
+    - main
+  before_script:
+    - apk add --no-cache curl python3 py3-pip git bash
+    ### Install awscli
+    - pip3 install awscli
+    - aws configure set region $AWS_REGION
+    ### Install Docker
+    - apk add --no-cache docker openrc
+    ### Install kubectl
+    - curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl
+    - chmod +x ./kubectl
+    - mv ./kubectl /usr/local/bin/kubectl
+  script:
+    ### Install EKS kubeconfig file locally
+    - aws eks update-kubeconfig --name product-hunting-eks-cluster
+    ### Install Goldilocks
+    - cd ./monitor/vpa
+    - git clone https://github.com/FairwindsOps/goldilocks.git
+    - cd goldilocks
+    - kubectl create namespace goldilocks --dry-run=client -o yaml | kubectl apply -f -
+    - kubectl -n goldilocks apply -f hack/manifests/controller
+    - kubectl -n goldilocks apply -f hack/manifests/dashboard
+    ### Enable 'default' namespace to Goldilocks Dashboard
+    - kubectl label --overwrite ns default goldilocks.fairwinds.com/enabled=true
+    ### ### Goldilocks is now accessible using port-forwarding
+    ### kubectl -n goldilocks port-forward svc/goldilocks-dashboard 8080:80
 
 monitor kube with prometheus:
   stage: prod monitor
@@ -730,6 +730,37 @@ app tracing with jaeger:
 ### In a real use case, it is strongly discouraged to create stages/jobs destroying resources in production.
 ### Exceptionally for this practical project made for learning, this stage brings a comfort of use, especially for debugging.
 ### ###
+
+destroy goldilocks:
+  stage: prod destroy
+  needs: ["monitor vertical pod autoscaler using goldilocks"]
+  when: manual
+  image:
+    name: golang:1.18-alpine3.16
+    entrypoint: [""]
+  only:
+    - main
+  before_script:
+    - apk add --no-cache curl python3 py3-pip git bash
+    ### Install awscli
+    - pip3 install awscli
+    - aws configure set region $AWS_REGION
+    ### Install Docker
+    - apk add --no-cache docker openrc
+    ### Install kubectl
+    - curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl
+    - chmod +x ./kubectl
+    - mv ./kubectl /usr/local/bin/kubectl
+  script:
+    ### Install EKS kubeconfig file locally
+    - aws eks update-kubeconfig --name product-hunting-eks-cluster
+    ### Destroy Goldilocks
+    - cd ./monitor/vpa
+    - git clone https://github.com/FairwindsOps/goldilocks.git
+    - cd goldilocks
+    - kubectl -n goldilocks delete -f hack/manifests/dashboard
+    - kubectl -n goldilocks delete -f hack/manifests/controller
+    - kubectl delete namespace goldilocks
 
 destroy prometheus:
   stage: prod destroy
