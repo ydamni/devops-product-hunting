@@ -620,7 +620,7 @@ monitor vertical pod autoscaler:
     ### ### Goldilocks is now accessible using port-forwarding
     ### kubectl -n goldilocks port-forward svc/goldilocks-dashboard 8080:80
 
-install prometheus:
+monitoring prerequisites:
   stage: prod monitor
   needs: ["deploy prod on eks"]
   when: on_success
@@ -646,15 +646,19 @@ install prometheus:
   script:
     ### Install EKS kubeconfig file locally
     - aws eks update-kubeconfig --name product-hunting-eks-cluster
+    ### ### Needed by 'monitor kube with prometheus' job
     ### Install kube-prometheus release-0.10 compatible with Kubernetes 1.22
     - cd ./monitor/prometheus
     - git clone --depth 1 https://github.com/prometheus-operator/kube-prometheus.git -b release-0.10 /tmp/prometheus
     - cp -R /tmp/prometheus/manifests .
     - kubectl apply --server-side -f manifests/setup
+    ### ### Needed by 'app tracing with jaeger' job
+    ### Install cert-manager
+    - kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.6.3/cert-manager.yaml
 
 monitor kube with prometheus:
   stage: prod monitor
-  needs: ["install prometheus"]
+  needs: ["monitoring prerequisites"]
   when: manual
   image: alpine:3.16
   only:
@@ -718,7 +722,7 @@ destroy prometheus:
 
 app tracing with jaeger:
   stage: prod monitor
-  needs: ["deploy prod on eks"]
+  needs: ["monitoring prerequisites"]
   when: manual
   image: alpine:3.16
   only:
@@ -737,13 +741,13 @@ app tracing with jaeger:
   script:
     ### Install EKS kubeconfig file locally
     - aws eks update-kubeconfig --name product-hunting-eks-cluster
-    ### Install cert-manager
-    - kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.6.3/cert-manager.yaml
     ### Install Jaeger Operator
     - cd ./monitor/jaeger
     - kubectl apply -f jaeger-operator-role-binding.yml
-    - kubectl create namespace observability
+    - kubectl create namespace observability --dry-run=client -o yaml | kubectl apply -f -
     - kubectl create -f https://github.com/jaegertracing/jaeger-operator/releases/download/v1.35.0/jaeger-operator.yaml -n observability
+    ### Wait for installation to finish
+    - sleep 15
     ### Deploy Jaeger for Production
     - kubectl apply -f jaeger-prod.yml
     ### ### Jaeger is now accessible using port-forwarding

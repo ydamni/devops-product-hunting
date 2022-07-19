@@ -8,11 +8,11 @@ const { SemanticResourceAttributes } = require('@opentelemetry/semantic-conventi
 const { JaegerExporter } = require("@opentelemetry/exporter-jaeger");
 const { BatchSpanProcessor } = require("@opentelemetry/sdk-trace-base");
 
-////Switch traceExporter to ConsoleSpan for debug 
-//const { ConsoleSpanExporter } = require('@opentelemetry/sdk-trace-base');
-//const traceExporter = new ConsoleSpanExporter();
-const traceExporter = new JaegerExporter();
-
+const options = {
+  host: 'simple-prod-agent',
+  port: 6832,
+}
+const traceExporter = new JaegerExporter(options);
 const sdk = new opentelemetry.NodeSDK({
   resource: new Resource({
     [SemanticResourceAttributes.SERVICE_NAME]: 'product-hunting-api',
