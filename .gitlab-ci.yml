@@ -38,6 +38,7 @@ stages:
   - prod deploy
   - prod operate
   - prod monitor
+  - prod destroy
 
 ### ###
 ### Dev - Merge request
@@ -474,6 +475,7 @@ deploy prod on eks:
   environment:
     name: production
     url: $PROD_URL
+    on_stop: destroy prod deploy
   before_script:
     - apk add --no-cache curl python3 py3-pip openssl
     ### Install awscli
@@ -690,36 +692,6 @@ monitor kube with prometheus:
     ### kubectl -n monitoring port-forward svc/grafana 3000
     ### kubectl -n monitoring port-forward svc/alertmanager-main 9093
 
-destroy prometheus:
-  stage: prod monitor
-  needs: ["monitor kube with prometheus"]
-  when: manual
-  image: alpine:3.16
-  only:
-    - main
-  cache:
-    -
-      key: PROD-PROMETHEUS
-      paths:
-        - $CI_PROJECT_DIR/monitor/prometheus/manifests/
-  before_script:
-    - apk add --no-cache curl python3 py3-pip
-    ### Install awscli
-    - pip3 install awscli
-    - aws configure set region $AWS_REGION
-    ### Install Docker
-    - apk add --no-cache docker openrc
-    ### Install kubectl
-    - curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl
-    - chmod +x ./kubectl
-    - mv ./kubectl /usr/local/bin/kubectl
-  script:
-    ### Install EKS kubeconfig file locally
-    - aws eks update-kubeconfig --name product-hunting-eks-cluster
-    ### Destroy kube-prometheus
-    - cd ./monitor/prometheus
-    - kubectl delete --ignore-not-found=true -f manifests/
-
 app tracing with jaeger:
   stage: prod monitor
   needs: ["monitoring prerequisites"]
@@ -752,3 +724,123 @@ app tracing with jaeger:
     - kubectl apply -f jaeger-prod.yml
     ### ### Jaeger is now accessible using port-forwarding
     ### kubectl port-forward svc/simple-prod-query 16686
+
+### ### WARNING
+### The next jobs are part of the 'prod destroy' stage.
+### In a real use case, it is strongly discouraged to create stages/jobs destroying resources in production.
+### Exceptionally for this practical project made for learning, this stage brings a comfort of use, especially for debugging.
+### ###
+
+destroy prometheus:
+  stage: prod destroy
+  needs: ["monitor kube with prometheus"]
+  when: manual
+  image: alpine:3.16
+  only:
+    - main
+  cache:
+    -
+      key: PROD-PROMETHEUS
+      paths:
+        - $CI_PROJECT_DIR/monitor/prometheus/manifests/
+  before_script:
+    - apk add --no-cache curl python3 py3-pip
+    ### Install awscli
+    - pip3 install awscli
+    - aws configure set region $AWS_REGION
+    ### Install Docker
+    - apk add --no-cache docker openrc
+    ### Install kubectl
+    - curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl
+    - chmod +x ./kubectl
+    - mv ./kubectl /usr/local/bin/kubectl
+  script:
+    ### Install EKS kubeconfig file locally
+    - aws eks update-kubeconfig --name product-hunting-eks-cluster
+    ### Destroy kube-prometheus
+    - cd ./monitor/prometheus
+    - kubectl delete --ignore-not-found=true -f manifests/
+
+destroy jaeger:
+  stage: prod destroy
+  needs: ["app tracing with jaeger"]
+  when: manual
+  image: alpine:3.16
+  only:
+    - main
+  before_script:
+    - apk add --no-cache curl python3 py3-pip
+    ### Install awscli
+    - pip3 install awscli
+    - aws configure set region $AWS_REGION
+    ### Install Docker
+    - apk add --no-cache docker openrc
+    ### Install kubectl
+    - curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl
+    - chmod +x ./kubectl
+    - mv ./kubectl /usr/local/bin/kubectl
+  script:
+    ### Install EKS kubeconfig file locally
+    - aws eks update-kubeconfig --name product-hunting-eks-cluster
+    ### Destroy Jaeger
+    - cd ./monitor/jaeger
+    - kubectl delete -f jaeger-prod.yml
+    - kubectl delete -f https://github.com/jaegertracing/jaeger-operator/releases/download/v1.35.0/jaeger-operator.yaml -n observability
+    - kubectl delete namespace observability
+    - kubectl delete -f jaeger-operator-role-binding.yml
+
+destroy prod deploy:
+  stage: prod destroy
+  needs: ["deploy prod on eks"]
+  when: manual
+  image:
+    name: hashicorp/terraform:1.2.2
+    entrypoint: [""]
+  only:
+    - main
+  environment:
+    name: production
+    action: stop
+  before_script:
+    - apk add --no-cache curl python3 py3-pip openssl
+    ### Install awscli
+    - pip3 install awscli
+    - aws configure set region $AWS_REGION
+    ### Install Docker
+    - apk add --no-cache docker openrc
+    ### Install kubectl
+    - curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl
+    - chmod +x ./kubectl
+    - mv ./kubectl /usr/local/bin/kubectl
+  script:
+    ### Install EKS kubeconfig file locally
+    - aws eks update-kubeconfig --name product-hunting-eks-cluster
+    ### Delete Kubernetes Metrics Server
+    - kubectl delete -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+    ### Destroy prod deploy
+    - cd ./deploy/eks
+    - |
+      cat <<EOF | tee ./main.tfvars
+      ecr_registry = "$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com"
+      ci_commit_short_sha = "$CI_COMMIT_SHORT_SHA"
+      EOF
+    - terraform init
+    - terraform destroy -var-file=main.tfvars -auto-approve
+
+destroy prod infra:
+  stage: prod destroy
+  needs: ["destroy prod deploy"]
+  when: manual
+  image:
+    name: hashicorp/terraform:1.2.2
+    entrypoint: [""]
+  only:
+    - main
+  before_script:
+    - apk add --no-cache python3 py3-pip
+    - pip3 install awscli
+    - aws configure set region $AWS_REGION
+  script:
+    - cd ./infrastructure/prod
+    - terraform init
+    - terraform destroy -auto-approve
