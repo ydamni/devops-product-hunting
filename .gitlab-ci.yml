@@ -613,7 +613,7 @@ monitoring prerequisites:
   script:
     ### Install EKS kubeconfig file locally
     - aws eks update-kubeconfig --name product-hunting-eks-cluster
-    ### ### Needed by 'monitor kube with prometheus' job
+    ### ### Needed by 'monitor kube with kube-prometheus' job
     ### Install kube-prometheus release-0.10 compatible with Kubernetes 1.22
     - cd ./monitor/prometheus
     - git clone --depth 1 https://github.com/prometheus-operator/kube-prometheus.git -b release-0.10 /tmp/prometheus
@@ -658,7 +658,7 @@ monitor vertical pod autoscaler using goldilocks:
     ### ### Goldilocks is now accessible using port-forwarding
     ### kubectl -n goldilocks port-forward svc/goldilocks-dashboard 8080:80
 
-monitor kube with prometheus:
+monitor kube with kube-prometheus:
   stage: prod monitor
   needs: ["monitoring prerequisites"]
   when: manual
@@ -684,8 +684,10 @@ monitor kube with prometheus:
   script:
     ### Install EKS kubeconfig file locally
     - aws eks update-kubeconfig --name product-hunting-eks-cluster
-    ### Deploy kube-prometheus
+    ### Replace grafana-dashboardDatasources.yaml file with modified version integrating Loki as datasource
     - cd ./monitor/prometheus
+    - cp -f ../grafana/grafana-dashboardDatasources.yaml ./manifests/
+    ### Deploy kube-prometheus
     - kubectl apply -f manifests/
     ### ### Prometheus, Grafana and Alert Manager are now accessible using port-forwarding
     ### kubectl -n monitoring port-forward svc/prometheus-operated 9090
@@ -725,6 +727,39 @@ app tracing with jaeger:
     ### ### Jaeger is now accessible using port-forwarding
     ### kubectl port-forward svc/simple-prod-query 16686
 
+log management with loki:
+  stage: prod monitor
+  needs: ["monitor kube with kube-prometheus"]
+  when: manual
+  image: alpine:3.16
+  only:
+    - main
+  before_script:
+    - apk add --no-cache curl python3 py3-pip
+    ### Install awscli
+    - pip3 install awscli
+    - aws configure set region $AWS_REGION
+    ### Install Docker
+    - apk add --no-cache docker openrc
+    ### Install kubectl
+    - curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl
+    - chmod +x ./kubectl
+    - mv ./kubectl /usr/local/bin/kubectl
+    ### Install helm
+    - apk add --no-cache tar
+    - wget https://get.helm.sh/helm-v3.9.1-linux-amd64.tar.gz
+    - tar -zxvf helm-v3.9.1-linux-amd64.tar.gz
+    - chmod +x linux-amd64/helm
+    - mv linux-amd64/helm /usr/local/bin/helm
+  script:
+    ### Install EKS kubeconfig file locally
+    - aws eks update-kubeconfig --name product-hunting-eks-cluster
+    ### Install Loki
+    - helm repo add loki https://grafana.github.io/loki/charts
+    - helm repo update
+    - helm upgrade --install loki loki/loki-stack --namespace monitoring
+    ### ### Loki is now linked to Grafana
+
 ### ### WARNING
 ### The next jobs are part of the 'prod destroy' stage.
 ### In a real use case, it is strongly discouraged to create stages/jobs destroying resources in production.
@@ -762,9 +797,9 @@ destroy goldilocks:
     - kubectl -n goldilocks delete -f hack/manifests/controller
     - kubectl delete namespace goldilocks
 
-destroy prometheus:
+destroy kube-prometheus:
   stage: prod destroy
-  needs: ["monitor kube with prometheus"]
+  needs: ["monitor kube with kube-prometheus"]
   when: manual
   image: alpine:3.16
   only:
@@ -819,6 +854,36 @@ destroy jaeger:
     - kubectl delete -f https://github.com/jaegertracing/jaeger-operator/releases/download/v1.35.0/jaeger-operator.yaml -n observability
     - kubectl delete namespace observability
     - kubectl delete -f jaeger-operator-role-binding.yml
+
+destroy loki:
+  stage: prod destroy
+  needs: ["log management with loki"]
+  when: manual
+  image: alpine:3.16
+  only:
+    - main
+  before_script:
+    - apk add --no-cache curl python3 py3-pip
+    ### Install awscli
+    - pip3 install awscli
+    - aws configure set region $AWS_REGION
+    ### Install Docker
+    - apk add --no-cache docker openrc
+    ### Install kubectl
+    - curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl
+    - chmod +x ./kubectl
+    - mv ./kubectl /usr/local/bin/kubectl
+    ### Install helm
+    - apk add --no-cache tar
+    - wget https://get.helm.sh/helm-v3.9.1-linux-amd64.tar.gz
+    - tar -zxvf helm-v3.9.1-linux-amd64.tar.gz
+    - chmod +x linux-amd64/helm
+    - mv linux-amd64/helm /usr/local/bin/helm
+  script:
+    ### Install EKS kubeconfig file locally
+    - aws eks update-kubeconfig --name product-hunting-eks-cluster
+    ### Destroy Loki
+    - helm uninstall loki --namespace monitoring
 
 destroy prod deploy:
   stage: prod destroy
