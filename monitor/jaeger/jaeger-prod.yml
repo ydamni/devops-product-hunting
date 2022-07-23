@@ -10,3 +10,20 @@ spec:
       limits:
         cpu: 100m
         memory: 128Mi
+  storage:
+    type: elasticsearch
+    options:
+      es:
+        server-urls: https://jaeger-es-http.default.svc:9200
+        index-prefix: jaeger-prod
+        tls:
+          ca: /es/certificates/ca.crt
+    secretName: jaeger-es-secret
+  volumeMounts:
+    - name: certificates
+      mountPath: /es/certificates/
+      readOnly: true
+  volumes:
+    - name: certificates
+      secret:
+        secretName: jaeger-es-http-certs-public
