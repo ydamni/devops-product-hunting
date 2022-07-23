@@ -9,8 +9,12 @@ const { JaegerExporter } = require("@opentelemetry/exporter-jaeger");
 const { BatchSpanProcessor } = require("@opentelemetry/sdk-trace-base");
 
 const options = {
-  host: 'simple-prod-agent',
-  port: 6832,
+// // Jaeger Agent
+//  host: 'simple-prod-agent',
+//  port: 6832,
+
+// // Jaeger Collector
+  endpoint: 'http://simple-prod-collector:14268/api/traces',
 }
 const traceExporter = new JaegerExporter(options);
 const sdk = new opentelemetry.NodeSDK({
