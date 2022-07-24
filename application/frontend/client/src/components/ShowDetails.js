@@ -29,7 +29,7 @@ const ShowDetails = ({post}) => {
                 </div>
             </div>
             </div>
-    </Fragment>
+        </Fragment>
     );
 };
 

@@ -1,5 +1,6 @@
 import React, { Fragment, useEffect, useState } from "react";
 import ShowDetails from "./ShowDetails";
+import Pagination from "./Pagination";
 
 const API_URL = process.env.REACT_APP_API_URL;
 
@@ -7,7 +8,7 @@ const API_URL = process.env.REACT_APP_API_URL;
 const getUrl = (post) => {
     try {
         window.open(post.url, '_blank');
-        console.log(post.url)
+        console.log(post.url);
     } catch (err) {
         console.error(err.message);
     }
@@ -15,12 +16,15 @@ const getUrl = (post) => {
 
 const ListPosts = () => {
     const [posts, setPosts] = useState([]);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [postsPerPage] = useState(25);
+    const totalPosts = posts.length;
 
     //GET all posts
     const getPosts = async() => {
         try {
-            const response = await fetch(API_URL)
-            const jsonData = await response.json()
+            const response = await fetch(API_URL);
+            const jsonData = await response.json();
             setPosts(jsonData);
         } catch (err) {
             console.error(err.message);
@@ -32,10 +36,26 @@ const ListPosts = () => {
         getPosts();
     }, []);
 
-    console.log(posts);
+    //Show posts of current page
+    const indexOfLastPost = currentPage * postsPerPage;
+    const indexOfFirstPost = indexOfLastPost - postsPerPage;
+    const currentPosts = posts.slice(indexOfFirstPost, indexOfLastPost);
+
+    //Change current page
+    const paginate = (pageNumber) => setCurrentPage(pageNumber);
+    const paginatePrevious = () => {
+        if (currentPage > 1) {
+            setCurrentPage(currentPage - 1);
+        }
+    };
+    const paginateNext = () => {
+        if (currentPage < Math.ceil(totalPosts / postsPerPage)) {
+            setCurrentPage(currentPage + 1);
+        }
+    };
+
     return (
         <Fragment>
-        <h1 className="text-center mt-5">Top 500 most voted products on Product Hunt</h1>
             <table class="table table-striped table-bordered mt-5 text-center">
                 <thead class="thead-light">
                     <tr>
@@ -49,7 +69,7 @@ const ListPosts = () => {
                     </tr>
                 </thead>
                 <tbody>
-                    {posts.map(post => (
+                    {currentPosts.map(post => (
                         <tr key={post.post_id}>
                             <td>{post.id}</td>
                             <td>{post.name}</td>
@@ -62,8 +82,8 @@ const ListPosts = () => {
                     ))}
                 </tbody>
             </table>
+            <Pagination postsPerPage={postsPerPage} totalPosts={totalPosts} paginate={paginate} paginatePrevious={paginatePrevious} paginateNext={paginateNext} currentPage={currentPage}/>
         </Fragment>
-        
     );
 };
 
