@@ -75,6 +75,7 @@ const ListPosts = () => {
 
     return (
         <Fragment>
+            <Pagination posts={posts} postsPerPage={postsPerPage} totalPosts={totalPosts} currentPage={currentPage} setCurrentPage={setCurrentPage}/>
             <table className="table table-fixed table-striped table-bordered mt-5 text-center">
                 <thead className="thead-light">
                     <tr>
