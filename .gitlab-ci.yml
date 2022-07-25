@@ -99,7 +99,7 @@ build client-server app:
     - npm install --save @opentelemetry/api @opentelemetry/sdk-node @opentelemetry/auto-instrumentations-node @opentelemetry/exporter-jaeger
     ### ### Client-side
     - cd $CI_PROJECT_DIR/application/frontend/client
-    - npm install
+    - npm install --save @fortawesome/fontawesome-svg-core @fortawesome/free-solid-svg-icons @fortawesome/free-regular-svg-icons @fortawesome/react-fontawesome@latest
 
 smoke test:
   stage: test
@@ -268,7 +268,7 @@ build project:
     - npm install --save @opentelemetry/api @opentelemetry/sdk-node @opentelemetry/auto-instrumentations-node @opentelemetry/exporter-jaeger
     ### ### Client-side
     - cd $CI_PROJECT_DIR/application/frontend/client
-    - npm install
+    - npm install --save @fortawesome/fontawesome-svg-core @fortawesome/free-solid-svg-icons @fortawesome/free-regular-svg-icons @fortawesome/react-fontawesome@latest
     - export REACT_APP_API_URL="$REVIEW_API_URL"
     - npm run build
 
@@ -424,7 +424,7 @@ rebuild project for prod:
     - apk add --no-cache npm
   script:
     - cd $CI_PROJECT_DIR/application/frontend/client
-    - npm install
+    - npm install --save @fortawesome/fontawesome-svg-core @fortawesome/free-solid-svg-icons @fortawesome/free-regular-svg-icons @fortawesome/react-fontawesome@latest
     - export REACT_APP_API_URL="$PROD_API_URL"
     - npm run build
 
