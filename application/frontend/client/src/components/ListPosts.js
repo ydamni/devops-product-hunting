@@ -41,19 +41,6 @@ const ListPosts = () => {
     const indexOfFirstPost = indexOfLastPost - postsPerPage;
     const currentPosts = posts.slice(indexOfFirstPost, indexOfLastPost);
 
-    //Change current page
-    const paginate = (pageNumber) => setCurrentPage(pageNumber);
-    const paginatePrevious = () => {
-        if (currentPage > 1) {
-            setCurrentPage(currentPage - 1);
-        }
-    };
-    const paginateNext = () => {
-        if (currentPage < Math.ceil(totalPosts / postsPerPage)) {
-            setCurrentPage(currentPage + 1);
-        }
-    };
-
     return (
         <Fragment>
             <table class="table table-striped table-bordered mt-5 text-center">
@@ -82,7 +69,7 @@ const ListPosts = () => {
                     ))}
                 </tbody>
             </table>
-            <Pagination postsPerPage={postsPerPage} totalPosts={totalPosts} paginate={paginate} paginatePrevious={paginatePrevious} paginateNext={paginateNext} currentPage={currentPage}/>
+            <Pagination posts={posts} postsPerPage={postsPerPage} totalPosts={totalPosts} currentPage={currentPage} setCurrentPage={setCurrentPage}/>
         </Fragment>
     );
 };

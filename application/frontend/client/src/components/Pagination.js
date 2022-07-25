@@ -1,11 +1,29 @@
 import React from "react";
 
-const Pagination = ({ postsPerPage, totalPosts, paginate, paginatePrevious, paginateNext, currentPage }) => {
+const Pagination = ({ postsPerPage, totalPosts, currentPage, setCurrentPage }) => {
+    
+    //Define page numbers
     const pageNumbers = [];
-
     for(let i = 1; i <= Math.ceil(totalPosts / postsPerPage); i++) {
         pageNumbers.push(i);
     }
+
+    //Change current page to selected page
+    const paginate = (number) => setCurrentPage(number);
+
+    //Change current page to previous page
+    const paginatePrevious = () => {
+        if (currentPage > 1) {
+            setCurrentPage(currentPage - 1);
+        }
+    };
+
+    //Change current page to next page
+    const paginateNext = () => {
+        if (currentPage < Math.ceil(totalPosts / postsPerPage)) {
+            setCurrentPage(currentPage + 1);
+        }
+    };
 
     return (
         <nav>
