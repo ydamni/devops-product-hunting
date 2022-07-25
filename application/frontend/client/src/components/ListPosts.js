@@ -43,8 +43,8 @@ const ListPosts = () => {
 
     return (
         <Fragment>
-            <table class="table table-striped table-bordered mt-5 text-center">
-                <thead class="thead-light">
+            <table className="table table-striped table-bordered mt-5 text-center">
+                <thead className="thead-light">
                     <tr>
                         <th>Rank</th>
                         <th>Name</th>
@@ -64,7 +64,7 @@ const ListPosts = () => {
                             <td>{post.reviewsRating}/5</td>
                             <td>{post.tagline}</td>
                             <td><ShowDetails post={post} /></td>
-                            <td><button class="btn btn-primary" onClick={() => getUrl(post)}>Go to Product page</button></td>
+                            <td><button className="btn btn-primary" onClick={() => getUrl(post)}>Go to Product page</button></td>
                         </tr>
                     ))}
                 </tbody>

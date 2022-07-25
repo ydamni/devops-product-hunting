@@ -27,21 +27,21 @@ const Pagination = ({ postsPerPage, totalPosts, currentPage, setCurrentPage }) =
 
     return (
         <nav>
-            <ul class="pagination justify-content-center">
-                <li class="page-item">
-                    <a onClick={() => paginatePrevious()} href="#!" class="page-link">
+            <ul className="pagination justify-content-center">
+                <li className="page-item">
+                    <a onClick={() => paginatePrevious()} href="#!" className="page-link">
                         Previous
                     </a>
                 </li>
                 {pageNumbers.map(number => (
-                    <li key={number} class={currentPage === number ? 'active page-item' : 'page-item'}>
-                        <a onClick={() => paginate(number)} href="#!" class="page-link">
+                    <li key={number} className={currentPage === number ? 'active page-item' : 'page-item'}>
+                        <a onClick={() => paginate(number)} href="#!" className="page-link">
                             {number}
                         </a>
                     </li>
                 ))}
-                <li class="page-item">
-                    <a onClick={() => paginateNext()} href="#!" class="page-link">
+                <li className="page-item">
+                    <a onClick={() => paginateNext()} href="#!" className="page-link">
                         Next
                     </a>
                 </li>
