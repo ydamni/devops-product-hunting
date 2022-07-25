@@ -70,7 +70,6 @@ const ListPosts = () => {
 
     useEffect(() => {
         getPosts();
-        sortPosts("id");
     }, []);
 
     return (
