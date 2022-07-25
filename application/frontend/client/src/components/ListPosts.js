@@ -8,7 +8,6 @@ const API_URL = process.env.REACT_APP_API_URL;
 const getUrl = (post) => {
     try {
         window.open(post.url, '_blank');
-        console.log(post.url);
     } catch (err) {
         console.error(err.message);
     }
