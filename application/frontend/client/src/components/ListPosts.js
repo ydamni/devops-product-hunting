@@ -65,26 +65,26 @@ const ListPosts = () => {
     }, [allPosts]); // eslint-disable-line react-hooks/exhaustive-deps
 
     //Sort posts
-    const sortPosts = (val) => {
+    const sortPosts = (header) => {
         if (order === "asc") {
             setOrder("desc");
             setPosts(posts.sort((a, b) => {
-                if (typeof a[val] === 'number' || a[val] instanceof Number) {
-                    return b[val] - a[val]
+                if (typeof a[header] === 'number' || a[header] instanceof Number) {
+                    return b[header] - a[header];
                 }
                 else {
-                    return b[val].toLowerCase() > a[val].toLowerCase() ? 1 : -1
+                    return b[header].toLowerCase() > a[header].toLowerCase() ? 1 : -1;
                 }
             }));
         }
         else {
             setOrder("asc");
             setPosts(posts.sort((a, b) => {
-                if (typeof a[val] === 'number' || a[val] instanceof Number) {
-                    return a[val] - b[val]
+                if (typeof a[header] === 'number' || a[header] instanceof Number) {
+                    return a[header] - b[header];
                 }
                 else {
-                    return a[val].toLowerCase() > b[val].toLowerCase() ? 1 : -1
+                    return a[header].toLowerCase() > b[header].toLowerCase() ? 1 : -1;
                 }
             }));
         }
