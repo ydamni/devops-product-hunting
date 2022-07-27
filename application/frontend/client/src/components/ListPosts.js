@@ -77,7 +77,8 @@ const ListPosts = () => {
             return allPosts.filter((post) =>
                 post.id.toString() === searchValue ||
                 post.name.toLowerCase().includes(searchValue.toLowerCase()) ||
-                post.tagline.toLowerCase().includes(searchValue.toLowerCase())
+                post.tagline.toLowerCase().includes(searchValue.toLowerCase()) ||
+                String(post.description).toLowerCase().includes(searchValue.toLowerCase()) //'null' descriptions needs convert to String
             );
         }
     }
