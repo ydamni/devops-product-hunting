@@ -11,29 +11,6 @@ library.add(faSort)
 
 const API_URL = process.env.REACT_APP_API_URL;
 
-//Redirect to URL onclick
-const getUrl = (post) => {
-    try {
-        window.open(post.url, '_blank');
-    } catch (err) {
-        console.error(err.message);
-    }
-}
-
-//Filter posts based on search value inside search bar
-const filterPosts = (searchValue, allPosts) => {
-    if (searchValue === "") {
-        return allPosts;
-    }
-    else {
-        return allPosts.filter((post) =>
-            post.id.toString() === searchValue ||
-            post.name.toLowerCase().includes(searchValue.toLowerCase()) ||
-            post.tagline.toLowerCase().includes(searchValue.toLowerCase())
-        );
-    }
-}
-
 const ListPosts = () => {
     const [posts, setPosts] = useState([]);
     const [allPosts, setAllPosts] = useState([]);
@@ -45,13 +22,9 @@ const ListPosts = () => {
 
     //GET request from API to get posts
     const getPosts = async() => {
-        try {
-            const response = await fetch(API_URL);
-            const jsonData = await response.json();
-            setAllPosts(jsonData);
-        } catch (err) {
-            console.error(err.message);
-        }
+        const response = await fetch(API_URL);
+        const jsonData = await response.json();
+        setAllPosts(jsonData);
     }
 
     //Get all posts once
@@ -95,11 +68,31 @@ const ListPosts = () => {
     const indexOfFirstPost = indexOfLastPost - postsPerPage;
     const currentPosts = posts.slice(indexOfFirstPost, indexOfLastPost);
 
-    //Filter posts when search bar is used
+    //Filter posts based on search value inside search bar
+    const filterPosts = (searchValue) => {
+        if (searchValue === "") {
+            return allPosts;
+        }
+        else {
+            return allPosts.filter((post) =>
+                post.id.toString() === searchValue ||
+                post.name.toLowerCase().includes(searchValue.toLowerCase()) ||
+                post.tagline.toLowerCase().includes(searchValue.toLowerCase())
+            );
+        }
+    }
+
+    //Apply posts filtering when search bar is used
     useEffect(() => {
-        const filteredPosts = filterPosts(searchValue, allPosts);
+        setCurrentPage(1);
+        const filteredPosts = filterPosts(searchValue);
         setPosts(filteredPosts);
     }, [searchValue]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    //Redirect to URL onclick
+    const getUrl = (post) => {
+        window.open(post.url, '_blank');
+    }
 
     return (
         <Fragment>
