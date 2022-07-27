@@ -1,6 +1,7 @@
 import React, { Fragment, useEffect, useState } from "react";
 import ShowDetails from "./ShowDetails";
 import Pagination from "./Pagination";
+import SearchBar from "./SearchBar";
 
 //Import FontAwesome
 import { library } from '@fortawesome/fontawesome-svg-core'
@@ -19,23 +20,49 @@ const getUrl = (post) => {
     }
 }
 
+//Filter posts based on search value inside search bar
+const filterPosts = (searchValue, allPosts) => {
+    if (searchValue === "") {
+        return allPosts;
+    }
+    else {
+        return allPosts.filter((post) =>
+            post.id.toString() === searchValue ||
+            post.name.toLowerCase().includes(searchValue.toLowerCase()) ||
+            post.tagline.toLowerCase().includes(searchValue.toLowerCase())
+        );
+    }
+}
+
 const ListPosts = () => {
     const [posts, setPosts] = useState([]);
+    const [allPosts, setAllPosts] = useState([]);
     const [currentPage, setCurrentPage] = useState(1);
     const [postsPerPage] = useState(25);
     const totalPosts = posts.length;
     const [order, setOrder] = useState("desc");
+    const [searchValue, setSearchValue] = useState("");
 
-    //GET all posts
+    //GET request from API to get posts
     const getPosts = async() => {
         try {
             const response = await fetch(API_URL);
             const jsonData = await response.json();
-            setPosts(jsonData);
+            setAllPosts(jsonData);
         } catch (err) {
             console.error(err.message);
         }
     }
+
+    //Get all posts once
+    useEffect(() => {
+        getPosts();
+    }, []);
+
+    //Add posts when allPosts variable is filled
+    useEffect(() => {
+        setPosts(allPosts);
+    }, [allPosts]); // eslint-disable-line react-hooks/exhaustive-deps
 
     //Sort posts
     const sortPosts = (val) => {
@@ -68,13 +95,17 @@ const ListPosts = () => {
     const indexOfFirstPost = indexOfLastPost - postsPerPage;
     const currentPosts = posts.slice(indexOfFirstPost, indexOfLastPost);
 
+    //Filter posts when search bar is used
     useEffect(() => {
-        getPosts();
-    }, []);
+        const filteredPosts = filterPosts(searchValue, allPosts);
+        setPosts(filteredPosts);
+    }, [searchValue]); // eslint-disable-line react-hooks/exhaustive-deps
 
     return (
         <Fragment>
             <Pagination posts={posts} postsPerPage={postsPerPage} totalPosts={totalPosts} currentPage={currentPage} setCurrentPage={setCurrentPage}/>
+            <br></br>
+            <SearchBar callback={(searchValue) => setSearchValue(searchValue)}/>
             <table className="table table-fixed table-striped table-bordered mt-5 text-center">
                 <thead className="thead-light">
                     <tr>
