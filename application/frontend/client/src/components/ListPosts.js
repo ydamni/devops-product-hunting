@@ -113,7 +113,7 @@ const ListPosts = () => {
                 </thead>
                 <tbody>
                     {currentPosts.map(post => (
-                        <tr key={post.post_id}>
+                        <tr key={post.id}>
                             <td className="col-1">{post.id}</td>
                             <td className="col-3">{post.name}</td>
                             <td className="col-1">{post.votesCount}</td>

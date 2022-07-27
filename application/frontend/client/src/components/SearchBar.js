@@ -9,7 +9,7 @@ const SearchBar = ({callback}) => {
 
     return (
         <form onSubmit={handleSubmit}>
-            <label for="search">Search a product</label>
+            <label htmlFor="search">Search a product</label>
             <input type="text" name="search" className="form-control" value={innerValue} onChange={(e) => setInnerValue(e.target.value)}/>
         </form>
     )
