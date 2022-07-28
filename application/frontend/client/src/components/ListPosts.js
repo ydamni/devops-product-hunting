@@ -3,11 +3,8 @@ import ShowDetails from "./ShowDetails";
 import Pagination from "./Pagination";
 import SearchBar from "./SearchBar";
 
-//Import FontAwesome
-import { library } from '@fortawesome/fontawesome-svg-core'
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faSort } from '@fortawesome/free-solid-svg-icons'
-library.add(faSort)
+//Import react-icons
+import { FaSort } from "react-icons/fa";
 
 const API_URL = process.env.REACT_APP_API_URL;
 
@@ -97,17 +94,16 @@ const ListPosts = () => {
 
     return (
         <Fragment>
-            <Pagination posts={posts} postsPerPage={postsPerPage} totalPosts={totalPosts} currentPage={currentPage} setCurrentPage={setCurrentPage}/>
-            <br></br>
             <SearchBar callback={(searchValue) => setSearchValue(searchValue)}/>
-            <table className="table table-fixed table-striped table-bordered mt-5 text-center">
-                <thead className="thead-light">
+            <Pagination posts={posts} postsPerPage={postsPerPage} totalPosts={totalPosts} currentPage={currentPage} setCurrentPage={setCurrentPage}/>
+            <table className="table table-light table-fixed table-striped table-bordered mt-3 text-center">
+                <thead className="table-light">
                     <tr>
-                        <th className="align-top" onClick={() => sortPosts("id")}>Rank<br></br><FontAwesomeIcon icon="fas fa-sort" /></th>
-                        <th className="align-top w-25" onClick={() => sortPosts("name")}>Name<br></br><FontAwesomeIcon icon="fas fa-sort" /></th>
-                        <th className="align-top" onClick={() => sortPosts("votesCount")}>Upvotes<br></br><FontAwesomeIcon icon="fas fa-sort" /></th>
-                        <th className="align-top" onClick={() => sortPosts("reviewsRating")}>Rating<br></br><FontAwesomeIcon icon="fas fa-sort" /></th>
-                        <th className="align-top w-25">Short Description</th>
+                        <th className="align-top" onClick={() => sortPosts("id")}>Rank<br/><FaSort /></th>
+                        <th className="align-top" onClick={() => sortPosts("name")}>Name<br/><FaSort /></th>
+                        <th className="align-top" onClick={() => sortPosts("votesCount")}>Upvotes<br/><FaSort /></th>
+                        <th className="align-top" onClick={() => sortPosts("reviewsRating")}>Rating<br/><FaSort /></th>
+                        <th className="align-top">Short Description</th>
                         <th className="align-top">Details</th>
                         <th className="align-top">Link</th>
                     </tr>
@@ -116,12 +112,12 @@ const ListPosts = () => {
                     {currentPosts.map(post => (
                         <tr key={post.id}>
                             <td className="col-1">{post.id}</td>
-                            <td className="col-3">{post.name}</td>
+                            <td className="col-2">{post.name}</td>
                             <td className="col-1">{post.votesCount}</td>
                             <td className="col-1">{post.reviewsRating}/5</td>
                             <td className="col-3">{post.tagline}</td>
                             <td className="col-1"><ShowDetails post={post} /></td>
-                            <td className="col-1"><button className="btn btn-primary" onClick={() => getUrl(post)}>Go to Product page</button></td>
+                            <td className="col-2"><button className="btn btn-secondary" onClick={() => getUrl(post)}>Go to Product page</button></td>
                         </tr>
                     ))}
                 </tbody>

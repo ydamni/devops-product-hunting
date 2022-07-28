@@ -1,4 +1,4 @@
-import React, { useState } from "react"
+import React, { useState } from "react";
 
 const SearchBar = ({callback}) => {
     const [innerValue, setInnerValue] = useState("");
@@ -8,10 +8,11 @@ const SearchBar = ({callback}) => {
     };
 
     return (
-        <form onSubmit={handleSubmit}>
-            <label htmlFor="search">Search a product</label>
-            <input type="text" name="search" className="form-control" value={innerValue} onChange={(e) => setInnerValue(e.target.value)}/>
-        </form>
+        <div className="searchBar">
+            <form onSubmit={handleSubmit}>
+                <input type="text" name="search" className="form-control mt-5 mb-4" value={innerValue} onChange={(e) => setInnerValue(e.target.value)} placeholder="Search a product"/>
+            </form>
+        </div>
     )
 }
 
