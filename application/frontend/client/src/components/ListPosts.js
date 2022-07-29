@@ -87,30 +87,32 @@ const ListPosts = () => {
         <Fragment>
             <SearchBar callback={(searchValue) => setSearchValue(searchValue)}/>
             <Pagination posts={posts} postsPerPage={postsPerPage} totalPosts={totalPosts} currentPage={currentPage} setCurrentPage={setCurrentPage}/>
-            <table className="table table-light table-fixed table-striped table-bordered mt-3 text-center">
-                <thead className="table-light">
-                    <tr>
-                        <th className="align-top" onClick={() => sortPosts("id")}>Rank<br/><FaSort /></th>
-                        <th className="align-top" onClick={() => sortPosts("name")}>Name<br/><FaSort /></th>
-                        <th className="align-top" onClick={() => sortPosts("votesCount")}>Upvotes<br/><FaSort /></th>
-                        <th className="align-top" onClick={() => sortPosts("reviewsRating")}>Rating<br/><FaSort /></th>
-                        <th className="align-top">Short Description</th>
-                        <th className="align-top">Details</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {currentPosts.map(post => (
-                        <tr key={post.id}>
-                            <td className="col-1">{post.id}</td>
-                            <td className="col-2">{post.name}</td>
-                            <td className="col-1">{post.votesCount}</td>
-                            <td className="col-1">{post.reviewsRating}/5</td>
-                            <td className="col-3">{post.tagline}</td>
-                            <td className="col-1"><ShowDetails post={post} /></td>
+            <div className="table-responsive">
+                <table className="table table-light table-fixed table-striped table-bordered mt-3 text-center">
+                    <thead className="table-light">
+                        <tr>
+                            <th className="align-top" onClick={() => sortPosts("id")}>Rank<br/><FaSort /></th>
+                            <th className="align-top" onClick={() => sortPosts("name")}>Name<br/><FaSort /></th>
+                            <th className="align-top" onClick={() => sortPosts("votesCount")}>Upvotes<br/><FaSort /></th>
+                            <th className="align-top" onClick={() => sortPosts("reviewsRating")}>Rating<br/><FaSort /></th>
+                            <th className="align-top">Short Description</th>
+                            <th className="align-top">Details</th>
                         </tr>
-                    ))}
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        {currentPosts.map(post => (
+                            <tr key={post.id}>
+                                <td className="col-1">{post.id}</td>
+                                <td className="col-2">{post.name}</td>
+                                <td className="col-1">{post.votesCount}</td>
+                                <td className="col-1">{post.reviewsRating}/5</td>
+                                <td className="col-3">{post.tagline}</td>
+                                <td className="col-1"><ShowDetails post={post} /></td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
             <Pagination posts={posts} postsPerPage={postsPerPage} totalPosts={totalPosts} currentPage={currentPage} setCurrentPage={setCurrentPage}/>
         </Fragment>
     );
