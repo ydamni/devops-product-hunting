@@ -87,11 +87,6 @@ const ListPosts = () => {
         setPosts(filteredPosts);
     }, [searchValue]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    //Redirect to URL onclick
-    const getUrl = (post) => {
-        window.open(post.url, '_blank');
-    }
-
     return (
         <Fragment>
             <SearchBar callback={(searchValue) => setSearchValue(searchValue)}/>
@@ -105,7 +100,6 @@ const ListPosts = () => {
                         <th className="align-top" onClick={() => sortPosts("reviewsRating")}>Rating<br/><FaSort /></th>
                         <th className="align-top">Short Description</th>
                         <th className="align-top">Details</th>
-                        <th className="align-top">Link</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -117,7 +111,6 @@ const ListPosts = () => {
                             <td className="col-1">{post.reviewsRating}/5</td>
                             <td className="col-3">{post.tagline}</td>
                             <td className="col-1"><ShowDetails post={post} /></td>
-                            <td className="col-2"><button className="btn btn-secondary" onClick={() => getUrl(post)}>Go to Product page</button></td>
                         </tr>
                     ))}
                 </tbody>
