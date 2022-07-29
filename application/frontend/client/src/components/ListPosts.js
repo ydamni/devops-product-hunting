@@ -14,7 +14,7 @@ const ListPosts = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const [postsPerPage] = useState(25);
     const totalPosts = posts.length;
-    const [order, setOrder] = useState("desc");
+    const [order, setOrder] = useState("asc");
     const [searchValue, setSearchValue] = useState("");
 
     //GET request from API to get posts
@@ -22,7 +22,7 @@ const ListPosts = () => {
         const response = await fetch(API_URL);
         const jsonData = await response.json();
         setAllPosts(jsonData);
-    }
+    };
 
     //Get all posts once
     useEffect(() => {
@@ -41,24 +41,21 @@ const ListPosts = () => {
             setPosts(posts.sort((a, b) => {
                 if (typeof a[header] === 'number' || a[header] instanceof Number) {
                     return b[header] - a[header];
-                }
-                else {
+                } else {
                     return b[header].toLowerCase() > a[header].toLowerCase() ? 1 : -1;
                 }
             }));
-        }
-        else {
+        } else {
             setOrder("asc");
             setPosts(posts.sort((a, b) => {
                 if (typeof a[header] === 'number' || a[header] instanceof Number) {
                     return a[header] - b[header];
-                }
-                else {
+                } else {
                     return a[header].toLowerCase() > b[header].toLowerCase() ? 1 : -1;
                 }
             }));
-        }
-    }
+        };
+    };
 
     //Show posts of current page
     const indexOfLastPost = currentPage * postsPerPage;
@@ -69,16 +66,15 @@ const ListPosts = () => {
     const filterPosts = (searchValue) => {
         if (searchValue === "") {
             return allPosts;
-        }
-        else {
+        } else {
             return allPosts.filter((post) =>
                 post.id.toString() === searchValue ||
                 post.name.toLowerCase().includes(searchValue.toLowerCase()) ||
                 post.tagline.toLowerCase().includes(searchValue.toLowerCase()) ||
                 String(post.description).toLowerCase().includes(searchValue.toLowerCase()) //'null' descriptions needs convert to String
             );
-        }
-    }
+        };
+    };
 
     //Apply posts filtering when search bar is used
     useEffect(() => {
