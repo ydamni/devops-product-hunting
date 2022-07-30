@@ -643,8 +643,8 @@ monitoring prerequisites:
     ### Install cert-manager
     - kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.6.3/cert-manager.yaml
     ### Install Elasticsearch Operator
-    - kubectl create -f https://download.elastic.co/downloads/eck/2.3.0/crds.yaml
-    - kubectl create -f https://download.elastic.co/downloads/eck/2.3.0/operator.yaml
+    - kubectl apply -f https://download.elastic.co/downloads/eck/2.3.0/crds.yaml
+    - kubectl apply -f https://download.elastic.co/downloads/eck/2.3.0/operator.yaml
 
 
 monitor vertical pod autoscaler using goldilocks:
@@ -749,12 +749,12 @@ app tracing with jaeger:
     - cd ./monitor/jaeger
     - kubectl apply -f jaeger-operator-role-binding.yml
     - kubectl create namespace observability --dry-run=client -o yaml | kubectl apply -f -
-    - kubectl create -f https://github.com/jaegertracing/jaeger-operator/releases/download/v1.35.0/jaeger-operator.yaml -n observability
+    - kubectl apply -f https://github.com/jaegertracing/jaeger-operator/releases/download/v1.35.0/jaeger-operator.yaml -n observability
     ### Create Elasticsearch production cluster
     - kubectl apply -f elasticsearch-prod.yml
     ### Create secret for Jaeger, based on Elasticsearch credentials
     - PASSWORD=$(kubectl get secret jaeger-es-elastic-user -o go-template='{{.data.elastic | base64decode}}')
-    - kubectl create secret generic jaeger-es-secret --from-literal=ES_PASSWORD=$PASSWORD --from-literal=ES_USERNAME=elastic
+    - kubectl create secret generic jaeger-es-secret --from-literal=ES_PASSWORD=$PASSWORD --from-literal=ES_USERNAME=elastic --dry-run=client -o yaml | kubectl apply -f -
     ### Wait for installation to finish
     - sleep 30
     ### Deploy Jaeger for Production
