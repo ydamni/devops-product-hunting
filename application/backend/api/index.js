@@ -26,7 +26,7 @@ app.get("/health", async(req, res) => {
 //GET all posts
 app.get("/posts", async(req, res) => {
     try {
-        const allPosts = await pool.query("SELECT * FROM posts");
+        const allPosts = await pool.query("SELECT * FROM posts ORDER BY id ASC");
         res.json(allPosts.rows)
     } catch (err) {
         console.error(err.message);
