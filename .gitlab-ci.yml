@@ -84,7 +84,7 @@ build client-server app:
     - merge_requests
   cache:
     -
-      key: DEV-NODE-MODULES
+      key: DEV-NODE-MODULES-$CI_PIPELINE_ID
       paths:
         - $CI_PROJECT_DIR/application/backend/api/node_modules/
         - $CI_PROJECT_DIR/application/frontend/client/node_modules/
@@ -114,7 +114,7 @@ smoke test:
     - merge_requests
   cache:
     -
-      key: DEV-NODE-MODULES
+      key: DEV-NODE-MODULES-$CI_PIPELINE_ID
       paths:
         - $CI_PROJECT_DIR/application/backend/api/node_modules/
         - $CI_PROJECT_DIR/application/frontend/client/node_modules/
@@ -215,7 +215,7 @@ create main infra:
     - terraform init
     - terraform apply -auto-approve
 
-store top posts:
+store top posts in sql file:
   stage: build
   image: alpine:3.16
   only:
@@ -225,7 +225,22 @@ store top posts:
       key: REVIEW-POSTGRES
       paths:
         - $CI_PROJECT_DIR/application/backend/worker/posts.sql
+    -
+      key: API-LIMITATION
+      paths:
+        - $CI_PROJECT_DIR/application/backend/worker/api_last_use.txt
   before_script:
+    ### ### Product Hunt API limits large requests to every 15 minutes
+    ### Stop if API limitation still running
+    - |      
+      if [ -f $CI_PROJECT_DIR/application/backend/worker/api_last_use.txt ]; then
+        API_LIMIT_EXPIRE=$(($(cat $CI_PROJECT_DIR/application/backend/worker/api_last_use.txt) + 900))
+        NOW=$(date "+%s")
+        if [ $NOW -lt $API_LIMIT_EXPIRE ]; then
+          exit 0
+        fi
+      fi
+    ### Install dependencies
     - apk add --no-cache python3 py3-pip
     - pip3 install sqlizer-io-client
   script:
@@ -233,6 +248,8 @@ store top posts:
     ### GET top 500 most voted posts from Product Hunt API (output .json file)
     - export API_ACCESS_TOKEN=$PRODUCT_HUNT_API_ACCESS_TOKEN
     - python3 getTopPosts.py
+    ### Define API last use by adding actual timestamp (needed for API limitation)
+    - date '+%s' > api_last_use.txt
     ### Delete emojis inside .json file
     - sed -i -e 's/\(\\u\).\{4\}//g' posts.json
     ### Convert JSON to SQL
@@ -250,11 +267,11 @@ build project:
     - main
   cache:
     -
-      key: REVIEW-NODE-MODULES
+      key: REVIEW-NODE-MODULES-$CI_PIPELINE_ID
       paths:
         - $CI_PROJECT_DIR/application/backend/api/node_modules/
     -
-      key: REVIEW-BUILD
+      key: REVIEW-BUILD-$CI_PIPELINE_ID
       paths:
         - $CI_PROJECT_DIR/application/frontend/client/build
   before_script:
@@ -285,11 +302,11 @@ create review docker images:
       paths:
         - $CI_PROJECT_DIR/application/backend/worker/posts.sql
     -
-      key: REVIEW-NODE-MODULES
+      key: REVIEW-NODE-MODULES-$CI_PIPELINE_ID
       paths:
         - $CI_PROJECT_DIR/application/backend/api/node_modules/
     -
-      key: REVIEW-BUILD
+      key: REVIEW-BUILD-$CI_PIPELINE_ID
       paths:
         - $CI_PROJECT_DIR/application/frontend/client/build/
   before_script:
@@ -417,7 +434,7 @@ rebuild project for prod:
     - main
   cache:
     -
-      key: PROD-BUILD
+      key: PROD-BUILD-$CI_PIPELINE_ID
       paths:
         - $CI_PROJECT_DIR/application/frontend/client/build
   before_script:
@@ -439,7 +456,7 @@ create prod docker images:
     - main
   cache:
     -
-      key: PROD-BUILD
+      key: PROD-BUILD-$CI_PIPELINE_ID
       paths:
         - $CI_PROJECT_DIR/application/frontend/client/build/
   before_script:
@@ -596,7 +613,7 @@ monitoring prerequisites:
     - main
   cache:
     -
-      key: PROD-PROMETHEUS
+      key: PROD-PROMETHEUS-$CI_PIPELINE_ID
       paths:
         - $CI_PROJECT_DIR/monitor/kube-prometheus/default/manifests/
   before_script:
@@ -675,7 +692,7 @@ monitor kube with kube-prometheus:
     - main
   cache:
     -
-      key: PROD-PROMETHEUS
+      key: PROD-PROMETHEUS-$CI_PIPELINE_ID
       paths:
         - $CI_PROJECT_DIR/monitor/kube-prometheus/default/manifests/
   before_script:
@@ -739,7 +756,7 @@ app tracing with jaeger:
     - PASSWORD=$(kubectl get secret jaeger-es-elastic-user -o go-template='{{.data.elastic | base64decode}}')
     - kubectl create secret generic jaeger-es-secret --from-literal=ES_PASSWORD=$PASSWORD --from-literal=ES_USERNAME=elastic
     ### Wait for installation to finish
-    - sleep 10
+    - sleep 30
     ### Deploy Jaeger for Production
     - kubectl apply -f jaeger-prod.yml
     ### ### Jaeger is now accessible using port-forwarding
@@ -824,7 +841,7 @@ destroy kube-prometheus:
     - main
   cache:
     -
-      key: PROD-PROMETHEUS
+      key: PROD-PROMETHEUS-$CI_PIPELINE_ID
       paths:
         - $CI_PROJECT_DIR/monitor/kube-prometheus/default/manifests/
   before_script:
