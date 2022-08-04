@@ -142,7 +142,7 @@ smoke test:
     ### Smoke test with Selenium
     - cd $CI_PROJECT_DIR/test/smoke-test
     - python3 extractWebPage.py
-    - cat page.html | grep "Rank 500"
+    - cat page.html | grep "Rank 1"
   artifacts:
     paths:
       - test/smoke-test/page.html
