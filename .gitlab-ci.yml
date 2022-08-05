@@ -16,7 +16,7 @@ variables:
 # AWS_SECRET_ACCESS_KEY         - Protected/Masked
 # GITLAB_TOKEN                  - Masked
 # INFRACOST_API_KEY             - Masked
-# MY_IP                         - Protected/Masked
+# PUBLIC_IP                     - Protected/Masked
 # POSTGRES_DB                   - Protected
 # POSTGRES_PASSWORD             - Protected/Masked
 # POSTGRES_USER                 - Protected
@@ -358,7 +358,7 @@ deploy review on ecs:
       cat <<EOF | tee ./main.tfvars
       ecr_registry = "$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com"
       aws_account_id = "$AWS_ACCOUNT_ID"
-      my_ip = "$MY_IP"
+      public_ip = "$PUBLIC_IP"
       ci_commit_short_sha = "$CI_COMMIT_SHORT_SHA"
       EOF
     - terraform init
@@ -386,7 +386,7 @@ destroy review:
       cat <<EOF | tee ./main.tfvars
       ecr_registry = "$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com"
       aws_account_id = "$AWS_ACCOUNT_ID"
-      my_ip = "$MY_IP"
+      public_ip = "$PUBLIC_IP"
       ci_commit_short_sha = "$CI_COMMIT_SHORT_SHA"
       EOF
     - terraform init
