@@ -38,6 +38,7 @@ stages:
   - prod deploy
   - prod operate
   - prod monitor
+  - prod finops
   - prod destroy
 
 ### ###
@@ -795,11 +796,77 @@ log management with loki:
     - helm upgrade --install loki grafana/loki-stack --namespace monitoring --set loki.persistence.enabled=true,loki.persistence.storageClassName=ssd,loki.persistence.size=10Gi
     ### ### Loki is now linked to Grafana
 
+integrate kubecost:
+  stage: prod finops
+  needs: ["log management with loki"]
+  when: on_success
+  image: alpine:3.16
+  only:
+    - main
+  before_script:
+    - apk add --no-cache curl python3 py3-pip
+    ### Install awscli
+    - pip3 install awscli
+    - aws configure set region $AWS_REGION
+    ### Install Docker
+    - apk add --no-cache docker openrc
+    ### Install kubectl
+    - curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl
+    - chmod +x ./kubectl
+    - mv ./kubectl /usr/local/bin/kubectl
+    ### Install helm
+    - apk add --no-cache tar
+    - wget https://get.helm.sh/helm-v3.9.1-linux-amd64.tar.gz
+    - tar -zxvf helm-v3.9.1-linux-amd64.tar.gz
+    - chmod +x linux-amd64/helm
+    - mv linux-amd64/helm /usr/local/bin/helm
+  script:
+    ### Install EKS kubeconfig file locally
+    - aws eks update-kubeconfig --name product-hunting-eks-cluster
+    ### Install Kubecost
+    - |
+      helm upgrade -i kubecost \
+      oci://public.ecr.aws/kubecost/cost-analyzer --version 1.96.0 \
+      --namespace kubecost --create-namespace \
+      -f https://raw.githubusercontent.com/kubecost/cost-analyzer-helm-chart/develop/cost-analyzer/values-eks-cost-monitoring.yaml
+    ### ### Kubecost is now accessible using port-forwarding
+    ### kubectl port-forward --namespace kubecost deployment/kubecost-cost-analyzer 9090
+
 ### ### WARNING
 ### The next jobs are part of the 'prod destroy' stage.
 ### In a real use case, it is strongly discouraged to create stages/jobs destroying resources in production.
 ### Exceptionally for this practical project made for learning, this stage brings a comfort of use, especially for debugging.
 ### ###
+
+destroy kubecost:
+  stage: prod destroy
+  needs: ["integrate kubecost"]
+  when: manual
+  image: alpine:3.16
+  only:
+    - main
+  before_script:
+    - apk add --no-cache curl python3 py3-pip
+    ### Install awscli
+    - pip3 install awscli
+    - aws configure set region $AWS_REGION
+    ### Install Docker
+    - apk add --no-cache docker openrc
+    ### Install kubectl
+    - curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl
+    - chmod +x ./kubectl
+    - mv ./kubectl /usr/local/bin/kubectl
+    ### Install helm
+    - apk add --no-cache tar
+    - wget https://get.helm.sh/helm-v3.9.1-linux-amd64.tar.gz
+    - tar -zxvf helm-v3.9.1-linux-amd64.tar.gz
+    - chmod +x linux-amd64/helm
+    - mv linux-amd64/helm /usr/local/bin/helm
+  script:
+    ### Install EKS kubeconfig file locally
+    - aws eks update-kubeconfig --name product-hunting-eks-cluster
+    ### Destroy Kubecost
+    - helm uninstall kubecost --namespace kubecost
 
 destroy goldilocks:
   stage: prod destroy
